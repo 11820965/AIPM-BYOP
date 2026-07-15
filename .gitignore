@@ -1,0 +1,10 @@
+# Windows / OneDrive
+Thumbs.db
+desktop.ini
+ehthumbs.db
+$RECYCLE.BIN/
+
+# Editors
+.vscode/
+.idea/
+*.swp
