@@ -1,19 +1,52 @@
-# Windows / OneDrive
+# Dependencies
+node_modules
+
+# Build output
+dist
+dist-ssr
+.output
+.vinxi
+.tanstack/**
+.nitro
+*.local
+
+# Wrangler / Cloudflare
+.wrangler/
+.dev.vars
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Secrets — the Supabase anon key is public and belongs in .env,
+# but service-role keys and DB passwords must never reach git.
+.env
+.env.*
+!.env.example
+
+# Editors
+.vscode/*
+!.vscode/extensions.json
+.idea
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+*.swp
+
+# Windows / OneDrive / macOS
 Thumbs.db
 desktop.ini
 ehthumbs.db
 $RECYCLE.BIN/
+.DS_Store
 
-# Editors
-.vscode/
-.idea/
-*.swp
-
-# Node
-node_modules/
-npm-debug.log*
-
-# Secrets — never commit. Supabase anon key is public, but keep keys out of git.
-.env
-.env.*
-!.env.example
+# Using npm (package-lock.json). bun.lock removed at fork to avoid two
+# disagreeing lockfiles.
+bun.lock

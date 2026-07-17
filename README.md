@@ -21,20 +21,39 @@ This repo is the production build behind it.
 
 | Document | What it covers |
 |---|---|
-| [`casai-solution-architecture.html`](casai-solution-architecture.html) | Solution Architecture — bounded contexts, backend stack, C4 diagrams, data model, key flows, ADRs |
-| [`casai-mvp-delivery-plan.html`](casai-mvp-delivery-plan.html) | Phased delivery plan — six phases, MVP at week 11, scope in/out, long-lead items |
+| [`docs/casai-solution-architecture.html`](docs/casai-solution-architecture.html) | Solution Architecture — bounded contexts, backend stack, C4 diagrams, data model, key flows, ADRs |
+| [`docs/casai-mvp-delivery-plan.html`](docs/casai-mvp-delivery-plan.html) | Phased delivery plan — six phases, MVP at week 11, scope in/out, long-lead items |
 
 Both are written against the **live prototype as the benchmark**, not the PRD —
 the product has evolved past its own documentation (most notably: the NRI journey
 is built, and Home Health Score is retired).
 
-## What's built (P0)
+## Stack
+
+Forked from the Lovable prototype, so the validated UX comes with it:
+
+| Layer | Choice |
+|---|---|
+| Framework | **TanStack Start** (React 19, SSR + server functions) |
+| Routing | TanStack Router — file-based, `src/routes/` |
+| Data | TanStack Query → Supabase (Postgres + Auth) |
+| UI | Tailwind 4 + shadcn/ui + lucide |
+| Deploy | Cloudflare Workers (nitro + wrangler) |
+
+Because TanStack Start ships **server functions**, they are the BFF —
+there is no separate API service, and Supabase Edge Functions are not needed
+for the request path.
+
+## Layout
 
 ```
-supabase/migrations/0001_core_schema.sql   schema — household, worker, booking, catalog, NRI link
-supabase/migrations/0002_rls_policies.sql  the authorization layer, enforced by Postgres
-supabase/seed.sql                          beachhead seed — Goregaon West → Andheri
-tests/rls/                                 bounded-context boundary contract (18 tests)
+src/routes/          file-based routes — app.* | worker.* | nri.* | register/*
+src/components/      layout/AppShell.tsx (the context nav) + ui/ (shadcn)
+src/lib/             app state + seed data  ← being replaced by the data layer
+supabase/migrations/ schema + RLS — the authorization layer
+supabase/seed.sql    beachhead seed — Goregaon West → Andheri
+tests/rls/           bounded-context boundary contract (18 tests)
+docs/                architecture + delivery plan
 ```
 
 Three things are structural rather than cosmetic, because the prototype got each
