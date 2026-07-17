@@ -37,6 +37,14 @@ export const supabase: SupabaseClient<Database> | null = isSupabaseConfigured
     })
   : null;
 
+// Dev-only: expose the client so a magic-link token can be exchanged for a
+// session during local verification (free-tier Supabase can't email a
+// 6-digit code — templates are locked behind custom SMTP). Guarded by
+// import.meta.env.DEV, so this never ships in a production build.
+if (import.meta.env.DEV && typeof window !== "undefined" && supabase) {
+  (window as unknown as { __supabase?: SupabaseClient<Database> }).__supabase = supabase;
+}
+
 /** Use where a client is required and absence is a programming error. */
 export function requireSupabase(): SupabaseClient<Database> {
   if (!supabase) {

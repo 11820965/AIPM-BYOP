@@ -1,0 +1,35 @@
+name: CI
+
+# Runs on every push and PR. The RLS boundary tests are the merge gate:
+# each one maps to a real exposure in the original prototype, so a red run
+# means a context boundary has regressed. No database or secrets are
+# required — the tests execute against Postgres-in-WASM (PGlite).
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npx tsc --noEmit
+
+      - name: Boundary + provisioning tests (RLS on real Postgres via PGlite)
+        run: npm test
+
+      - name: Build
+        run: npm run build
