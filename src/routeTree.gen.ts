@@ -22,7 +22,6 @@ import { Route as RegisterNriRouteImport } from './routes/register/nri'
 import { Route as RegisterHouseholdRouteImport } from './routes/register/household'
 import { Route as NriHistoryRouteImport } from './routes/nri.history'
 import { Route as NriBookRouteImport } from './routes/nri.book'
-import { Route as AppPassportRouteImport } from './routes/app.passport'
 import { Route as AppInsightsRouteImport } from './routes/app.insights'
 import { Route as AppBookRouteImport } from './routes/app.book'
 import { Route as AppBackupRouteImport } from './routes/app.backup'
@@ -95,11 +94,6 @@ const NriBookRoute = NriBookRouteImport.update({
   path: '/nri/book',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AppPassportRoute = AppPassportRouteImport.update({
-  id: '/app/passport',
-  path: '/app/passport',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const AppInsightsRoute = AppInsightsRouteImport.update({
   id: '/app/insights',
   path: '/app/insights',
@@ -136,7 +130,6 @@ export interface FileRoutesByFullPath {
   '/app/backup': typeof AppBackupRoute
   '/app/book': typeof AppBookRoute
   '/app/insights': typeof AppInsightsRoute
-  '/app/passport': typeof AppPassportRoute
   '/nri/book': typeof NriBookRoute
   '/nri/history': typeof NriHistoryRoute
   '/register/household': typeof RegisterHouseholdRoute
@@ -158,7 +151,6 @@ export interface FileRoutesByTo {
   '/app/backup': typeof AppBackupRoute
   '/app/book': typeof AppBookRoute
   '/app/insights': typeof AppInsightsRoute
-  '/app/passport': typeof AppPassportRoute
   '/nri/book': typeof NriBookRoute
   '/nri/history': typeof NriHistoryRoute
   '/register/household': typeof RegisterHouseholdRoute
@@ -181,7 +173,6 @@ export interface FileRoutesById {
   '/app/backup': typeof AppBackupRoute
   '/app/book': typeof AppBookRoute
   '/app/insights': typeof AppInsightsRoute
-  '/app/passport': typeof AppPassportRoute
   '/nri/book': typeof NriBookRoute
   '/nri/history': typeof NriHistoryRoute
   '/register/household': typeof RegisterHouseholdRoute
@@ -205,7 +196,6 @@ export interface FileRouteTypes {
     | '/app/backup'
     | '/app/book'
     | '/app/insights'
-    | '/app/passport'
     | '/nri/book'
     | '/nri/history'
     | '/register/household'
@@ -227,7 +217,6 @@ export interface FileRouteTypes {
     | '/app/backup'
     | '/app/book'
     | '/app/insights'
-    | '/app/passport'
     | '/nri/book'
     | '/nri/history'
     | '/register/household'
@@ -249,7 +238,6 @@ export interface FileRouteTypes {
     | '/app/backup'
     | '/app/book'
     | '/app/insights'
-    | '/app/passport'
     | '/nri/book'
     | '/nri/history'
     | '/register/household'
@@ -272,7 +260,6 @@ export interface RootRouteChildren {
   AppBackupRoute: typeof AppBackupRoute
   AppBookRoute: typeof AppBookRoute
   AppInsightsRoute: typeof AppInsightsRoute
-  AppPassportRoute: typeof AppPassportRoute
   NriBookRoute: typeof NriBookRoute
   NriHistoryRoute: typeof NriHistoryRoute
   RegisterHouseholdRoute: typeof RegisterHouseholdRoute
@@ -383,13 +370,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof NriBookRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/app/passport': {
-      id: '/app/passport'
-      path: '/app/passport'
-      fullPath: '/app/passport'
-      preLoaderRoute: typeof AppPassportRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/app/insights': {
       id: '/app/insights'
       path: '/app/insights'
@@ -440,7 +420,6 @@ const rootRouteChildren: RootRouteChildren = {
   AppBackupRoute: AppBackupRoute,
   AppBookRoute: AppBookRoute,
   AppInsightsRoute: AppInsightsRoute,
-  AppPassportRoute: AppPassportRoute,
   NriBookRoute: NriBookRoute,
   NriHistoryRoute: NriHistoryRoute,
   RegisterHouseholdRoute: RegisterHouseholdRoute,

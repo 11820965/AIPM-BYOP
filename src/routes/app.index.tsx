@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { AppShell } from "@/components/layout/AppShell";
 import { useApp, useViewport } from "@/lib/app/state";
+import { getService, formatFromPrice } from "@/lib/catalog/catalog";
 import {
   ChefHat, Sparkles, Car,
   Brain, TrendingUp, Shield, Check, ShieldCheck, ArrowRight,
@@ -9,11 +10,13 @@ import { Link } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/app/")({ component: HomePage });
 
+// Icons + accent only. Name and price come from the catalog — the tile is
+// not allowed to have an opinion about what a cook costs.
 const FEATURES = [
-  { icon: ChefHat, label: "Cook", cat: "cook", color: "var(--teal)" },
-  { icon: Sparkles, label: "Maid", cat: "maid", color: "var(--gold)" },
-  { icon: Car, label: "Driver", cat: "driver", color: "var(--amber)" },
-];
+  { icon: ChefHat, cat: "cook", color: "var(--teal)" },
+  { icon: Sparkles, cat: "maid", color: "var(--gold)" },
+  { icon: Car, cat: "driver", color: "var(--amber)" },
+] as const;
 
 type Insight = { icon: any; t: string; a: string; to?: string; search?: Record<string, string> };
 const INSIGHTS: Insight[] = [
@@ -85,13 +88,15 @@ function HomePage() {
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-2 xl:grid-cols-3">
             {FEATURES.map((f) => {
               const I = f.icon;
+              const service = getService(f.cat);
               return (
-                <Link key={f.label} to="/app/book" search={{ cat: f.cat }} className="group rounded-2xl border border-border bg-card p-5 text-left transition hover:border-primary">
+                <Link key={f.cat} to="/app/book" search={{ cat: f.cat }} className="group rounded-2xl border border-border bg-card p-5 text-left transition hover:border-primary">
                   <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-xl" style={{ background: `color-mix(in oklab, ${f.color} 18%, transparent)`, color: f.color }}>
                     <I className="h-5 w-5" />
                   </div>
-                  <div className="text-sm font-semibold">{f.label}</div>
-                  <div className="mt-0.5 text-xs text-muted-foreground">From ₹199</div>
+                  <div className="text-sm font-semibold">{service.displayName}</div>
+                  {/* Was a hard-coded "From ₹199" while /app/book charged ₹220/hr. */}
+                  <div className="mt-0.5 text-xs text-muted-foreground">{formatFromPrice(service)}</div>
                 </Link>
               );
             })}
@@ -149,48 +154,20 @@ function HomePage() {
           </div>
         </section>
 
-        {/* Quick stats */}
-        {!isMobile && (
-          <aside className="space-y-3">
-            <div className="rounded-2xl border border-border bg-card p-4">
-              <div className="text-[10px] uppercase tracking-wider text-muted-foreground">NSM</div>
-              <div className="mt-1 text-2xl font-bold">1.8</div>
-              <div className="text-xs text-muted-foreground">bookings / household / month</div>
-              <Sparkline />
-            </div>
-            <div className="grid grid-cols-1 gap-3">
-              <Stat label="SLA breach" value="2.1%" color="var(--teal)" />
-              <Stat label="Worker availability" value="78%" color="var(--teal)" />
-              <Stat label="Churn risk" value="34" color="var(--teal)" />
-            </div>
-          </aside>
-        )}
-        {isMobile && (
-          <aside className="grid grid-cols-2 gap-3">
-            <MiniStat label="NSM" value="1.8" />
-            <MiniStat label="SLA" value="2.1%" />
-            <MiniStat label="Avail." value="78%" />
-            <MiniStat label="Churn" value="34" />
-          </aside>
-        )}
+        {/*
+          REMOVED — operations metrics (NSM 1.8, SLA breach 2.1%, worker
+          availability 78%, churn risk 34).
+
+          These rendered on the household's own home screen, which meant a
+          customer could read the churn score Casai keeps about them, next
+          to the plans it wants them to buy. They belong to the ops context
+          (/ops, phase P5) and are now unreachable from here by design:
+          churn_score has no household RLS policy at all, so the database
+          returns nothing even if a query is attempted.
+
+          See SAD §02 (debt) and supabase/migrations/0002_rls_policies.sql.
+        */}
       </div>
     </AppShell>
-  );
-}
-
-function Stat({ label, value, color }: { label: string; value: string; color: string }) {
-  return (
-    <div className="rounded-xl border border-border bg-card p-3">
-      <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</div>
-      <div className="mt-1 text-xl font-bold" style={{ color }}>{value}</div>
-    </div>
-  );
-}
-function MiniStat({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-xl border border-border bg-card p-3">
-      <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</div>
-      <div className="mt-1 text-lg font-bold" style={{ color: "var(--teal)" }}>{value}</div>
-    </div>
   );
 }

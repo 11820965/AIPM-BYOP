@@ -102,14 +102,14 @@ function NriBookPage() {
                 {i === 0 && <span className="mb-2 inline-block rounded-full px-2 py-0.5 text-[10px] font-semibold" style={{ background: "var(--amber)", color: "var(--background)" }}>Top match</span>}
                 <div className="flex items-center gap-3">
                   <button
-                    onClick={(e) => { e.stopPropagation(); nav({ to: "/app/passport", search: { w: w.id } }); }}
+                    onClick={(e) => { e.stopPropagation(); nav({ to: "/app/worker/$id", params: { id: w.id } }); }}
                     className="flex h-12 w-12 items-center justify-center rounded-full font-semibold"
                     style={{ background: "var(--amber)", color: "var(--background)" }}
                     aria-label={`Open ${w.name}'s passport`}
                   >{w.name[0]}</button>
                   <div className="flex-1">
                     <button
-                      onClick={(e) => { e.stopPropagation(); nav({ to: "/app/passport", search: { w: w.id } }); }}
+                      onClick={(e) => { e.stopPropagation(); nav({ to: "/app/worker/$id", params: { id: w.id } }); }}
                       className="font-semibold hover:underline"
                     >{w.name}</button>
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -130,7 +130,7 @@ function NriBookPage() {
 
                 <div className="mt-3 flex items-end justify-between">
                   <div className="text-lg font-bold">₹{w.price}<span className="text-xs font-normal text-muted-foreground">/{unitLabel}</span></div>
-                  <button onClick={(e) => { e.stopPropagation(); nav({ to: "/app/passport", search: { w: w.id } }); }}
+                  <button onClick={(e) => { e.stopPropagation(); nav({ to: "/app/worker/$id", params: { id: w.id } }); }}
                     className="inline-flex items-center gap-1 text-xs font-semibold" style={{ color: "var(--amber)" }}>
                     View passport <ChevronRight className="h-3 w-3" />
                   </button>
