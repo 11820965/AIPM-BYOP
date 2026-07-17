@@ -23,10 +23,13 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const AUTH_STUB = `
   create schema if not exists auth;
 
-  -- Stand-in for Supabase's auth.users
+  -- Stand-in for Supabase's auth.users. Only the columns this codebase
+  -- touches. raw_user_meta_data matters because it is client-supplied at
+  -- signup, which is exactly what 0003 must refuse to trust for the role.
   create table auth.users (
-    id    uuid primary key default gen_random_uuid(),
-    email text
+    id                 uuid primary key default gen_random_uuid(),
+    email              text,
+    raw_user_meta_data jsonb default '{}'::jsonb
   );
 
   -- Mirrors Supabase's implementation: read the JWT claims GUC.

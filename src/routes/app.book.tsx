@@ -1,10 +1,13 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { AppShell } from "@/components/layout/AppShell";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useViewport } from "@/lib/app/state";
-import { Star, Shield, Sparkles, ChefHat, Car, ChevronRight, AlertCircle, Minus, Plus } from "lucide-react";
-import { WORKERS, type Worker } from "@/lib/worker/data";
+import { Star, Shield, Sparkles, ChefHat, Car, ChevronRight, AlertCircle, Minus, Plus, Loader2 } from "lucide-react";
 import { createBooking } from "@/lib/app/bookings";
+import { useWorkers, type WorkerCard } from "@/lib/data/workers";
+import { getService, formatServicePrice, formatMoney } from "@/lib/catalog/catalog";
+import { isSupabaseConfigured } from "@/lib/supabase/client";
+import type { ServiceCategory } from "@/lib/supabase/database.types";
 
 type BookSearch = { cat?: string };
 export const Route = createFileRoute("/app/book")({
@@ -14,20 +17,21 @@ export const Route = createFileRoute("/app/book")({
   }),
 });
 
-const CATS = [
-  { id: "cook", label: "Cook", icon: ChefHat, price: "₹220/hr" },
-  { id: "maid", label: "Maid", icon: Sparkles, price: "₹180/hr" },
-  { id: "driver", label: "Driver", icon: Car, price: "₹250/hr" },
+// Household categories only — caregiver lives in the NRI context.
+// Icons + accent are presentation; label and price come from the catalog.
+const CATS: { id: ServiceCategory; icon: any }[] = [
+  { id: "cook", icon: ChefHat },
+  { id: "maid", icon: Sparkles },
+  { id: "driver", icon: Car },
 ];
 
 const SLOTS = ["8 AM", "10 AM", "12 PM", "2 PM", "4 PM", "6 PM", "8 PM", "Now"];
 
 function BookPage() {
   const search = Route.useSearch();
-  const initialCat = search.cat && CATS.some((c) => c.id === search.cat) ? search.cat : "cook";
-  const [cat, setCat] = useState(initialCat);
-  const initialList = WORKERS.filter((w) => w.type === cat).length ? WORKERS.filter((w) => w.type === cat) : WORKERS;
-  const [worker, setWorker] = useState<Worker>(initialList[0]);
+  const initialCat = (search.cat && CATS.some((c) => c.id === search.cat) ? search.cat : "cook") as ServiceCategory;
+  const [cat, setCat] = useState<ServiceCategory>(initialCat);
+  const [worker, setWorker] = useState<WorkerCard | null>(null);
   const [slot, setSlot] = useState<string>(SLOTS[0]);
   const [duration, setDuration] = useState<number>(2);
   const [address, setAddress] = useState<string>("");
@@ -38,24 +42,39 @@ function BookPage() {
   const { isMobile } = useViewport();
   const nav = useNavigate();
 
-  const visible = WORKERS.filter((w) => w.type === cat);
-  const shown = visible.length ? visible : WORKERS;
+  // Workers now come from Postgres (worker_public), not a seed array.
+  const { data: workers = [], isLoading, error: loadError } = useWorkers(cat);
 
-  const subtotal = worker.price * duration;
-  const discount = duration >= 3 ? Math.round(subtotal * 0.12) : 0;
-  const total = subtotal - discount;
+  // Keep a valid selection as the list changes (category switch / load).
+  useEffect(() => {
+    if (workers.length === 0) {
+      setWorker(null);
+    } else if (!worker || !workers.some((w) => w.id === worker.id)) {
+      setWorker(workers[0]);
+    }
+  }, [workers, worker]);
+
+  const service = getService(cat);
+  const priceMinor = worker?.priceMinor ?? service.priceMinor;
+  const subtotalMinor = priceMinor * duration;
+  const discountMinor = duration >= 3 ? Math.round(subtotalMinor * 0.12) : 0;
+  const totalMinor = subtotalMinor - discountMinor;
 
   const confirm = () => {
     setError("");
+    if (!worker) return setError("Select a worker first.");
     if (!slot) return setError("Pick a time slot.");
     if (duration < 1) return setError("Duration must be at least 1 hour.");
     if (address.trim().length < 8) return setError("Enter a complete service address (8+ characters).");
     setSubmitting(true);
+    // Booking still writes to the local store — the real Booking & SLA
+    // service is P2. Worker and price are now real; the write is not yet.
     const b = createBooking({
       workerId: worker.id,
       workerName: worker.name,
-      service: CATS.find((c) => c.id === cat)?.label || cat,
-      slot, duration, address: address.trim(), notes: notes.trim(), payment, total,
+      service: service.displayName,
+      slot, duration, address: address.trim(), notes: notes.trim(), payment,
+      total: Math.round(totalMinor / 100),
     });
     setTimeout(() => nav({ to: "/app/booking/$id", params: { id: b.id } }), 300);
   };
@@ -67,13 +86,14 @@ function BookPage() {
           <h3 className="mb-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Category</h3>
           {CATS.map((c) => {
             const I = c.icon; const on = cat === c.id;
+            const s = getService(c.id);
             return (
-              <button key={c.id} onClick={() => { setCat(c.id); const next = WORKERS.find((w) => w.type === c.id); if (next) setWorker(next); }}
+              <button key={c.id} onClick={() => { setCat(c.id); setWorker(null); }}
                 className="flex w-full items-center gap-3 rounded-xl border p-3 text-left text-sm transition"
                 style={{ borderColor: on ? "var(--teal)" : "var(--border)", background: on ? "color-mix(in oklab, var(--teal) 12%, transparent)" : "var(--card)" }}>
                 <I className="h-4 w-4" style={{ color: on ? "var(--teal)" : "var(--muted-foreground)" }} />
-                <span className="flex-1 font-medium">{c.label}</span>
-                <span className="text-xs text-muted-foreground">{c.price}</span>
+                <span className="flex-1 font-medium">{s.displayName}</span>
+                <span className="text-xs text-muted-foreground">{formatServicePrice(s)}</span>
               </button>
             );
           })}
@@ -89,20 +109,36 @@ function BookPage() {
         </aside>
 
         <section className="space-y-3">
-          <h3 className="text-sm font-semibold">{shown.length} matches near you</h3>
+          <h3 className="text-sm font-semibold">
+            {isLoading ? "Finding workers near you…" : `${workers.length} verified near you`}
+          </h3>
+
+          {!isSupabaseConfigured && <NotConfigured />}
+          {isSupabaseConfigured && loadError && (
+            <ResultNote tone="error">
+              Couldn't load workers. Check your connection and try again.
+            </ResultNote>
+          )}
+          {isSupabaseConfigured && isLoading && <WorkerSkeletons />}
+          {isSupabaseConfigured && !isLoading && !loadError && workers.length === 0 && (
+            <ResultNote>No verified {service.displayName.toLowerCase()} available in your zone yet.</ResultNote>
+          )}
+
           <div className="grid gap-3 md:grid-cols-2">
-            {shown.map((w, i) => (
+            {workers.map((w, i) => (
               <div key={w.id}
                 onClick={() => setWorker(w)}
                 className="cursor-pointer rounded-2xl border bg-card p-4 transition hover:border-primary"
-                style={{ borderColor: worker.id === w.id ? "var(--teal)" : "var(--border)" }}>
-                {i === 0 && <span className="mb-2 inline-block rounded-full px-2 py-0.5 text-[10px] font-semibold" style={{ background: "var(--teal)", color: "var(--background)" }}>Top match</span>}
+                style={{ borderColor: worker?.id === w.id ? "var(--teal)" : "var(--border)" }}>
+                {/* Honest label: the list is ordered by reliability. AI-ranked
+                    matching is P4 — there is no model to rank on yet. */}
+                {i === 0 && <span className="mb-2 inline-block rounded-full px-2 py-0.5 text-[10px] font-semibold" style={{ background: "var(--teal)", color: "var(--background)" }}>Most reliable</span>}
                 <div className="flex items-center gap-3">
                   <button
                     onClick={(e) => { e.stopPropagation(); nav({ to: "/app/worker/$id", params: { id: w.id } }); }}
                     className="flex h-12 w-12 items-center justify-center rounded-full font-semibold"
                     style={{ background: "var(--teal)", color: "var(--background)" }}
-                    aria-label={`Open ${w.name}'s passport`}
+                    aria-label={`Open ${w.name}'s profile`}
                   >{w.name[0]}</button>
                   <div className="flex-1">
                     <button
@@ -121,32 +157,17 @@ function BookPage() {
                   <Shield className="h-4 w-4" style={{ color: "var(--teal)" }} />
                 </div>
 
-                {/* Verification badges */}
+                {/* Verification badges — now driven by real status, not a
+                    seed array. A worker only appears here if is_live, so both
+                    are verified; shown for the trust signal they carry. */}
                 <div className="mt-3 flex flex-wrap gap-1.5 text-[10px]">
-                  <Pill color="var(--teal)" bg="color-mix(in oklab, var(--teal) 14%, transparent)">eKYC</Pill>
-                  <Pill color="var(--teal)" bg="color-mix(in oklab, var(--teal) 14%, transparent)">Police verified</Pill>
-                  {w.badges.map((b) => (
-                    <Pill key={b.label} color={b.color} bg={`color-mix(in oklab, ${b.color} 14%, transparent)`}>{b.label}</Pill>
-                  ))}
-                </div>
-
-                <div className="mt-3">
-                  <div className="mb-1 flex justify-between text-[11px] text-muted-foreground">
-                    <span>AI match</span>
-                    <span className="flex items-center gap-2">
-                      <span className="rounded-full px-1.5 py-0.5 text-[9px] font-semibold" style={{ background: "color-mix(in oklab, var(--purple) 18%, transparent)", color: "var(--purple)" }}>
-                        Trust: {w.trust}/100
-                      </span>
-                      <span>{w.match}%</span>
-                    </span>
-                  </div>
-                  <div className="h-1.5 overflow-hidden rounded-full bg-muted">
-                    <div className="h-full rounded-full" style={{ width: `${w.match}%`, background: "var(--teal)" }} />
-                  </div>
+                  {w.ekycVerified && <Pill color="var(--teal)" bg="color-mix(in oklab, var(--teal) 14%, transparent)">eKYC</Pill>}
+                  {w.policeVerified && <Pill color="var(--teal)" bg="color-mix(in oklab, var(--teal) 14%, transparent)">Police verified</Pill>}
+                  <Pill color="var(--purple)" bg="color-mix(in oklab, var(--purple) 14%, transparent)">Trust {w.trust}/100</Pill>
                 </div>
 
                 <div className="mt-3 flex items-end justify-between">
-                  <div className="text-lg font-bold">₹{w.price}<span className="text-xs font-normal text-muted-foreground">/hr</span></div>
+                  <div className="text-lg font-bold">{formatMoney(w.priceMinor)}<span className="text-xs font-normal text-muted-foreground">/hr</span></div>
                   <button onClick={(e) => { e.stopPropagation(); nav({ to: "/app/worker/$id", params: { id: w.id } }); }}
                     className="inline-flex items-center gap-1 text-xs font-semibold" style={{ color: "var(--teal)" }}>
                     View profile <ChevronRight className="h-3 w-3" />
@@ -160,8 +181,8 @@ function BookPage() {
         <aside className="rounded-2xl border border-border bg-card p-5 lg:sticky lg:top-24 lg:self-start">
           <h3 className="text-sm font-semibold">Booking summary</h3>
           <div className="mt-3 space-y-3 text-sm">
-            <Row k="Service" v={CATS.find((c) => c.id === cat)?.label || ""} />
-            <Row k="Worker" v={worker.name} />
+            <Row k="Service" v={service.displayName} />
+            <Row k="Worker" v={worker?.name ?? "—"} />
             <div className="rounded-lg bg-muted p-3">
               <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Pick a slot</div>
               <div className="mt-2 grid grid-cols-4 gap-1.5">
@@ -213,11 +234,11 @@ function BookPage() {
           </div>
           <div className="my-4 h-px bg-border" />
           <div className="space-y-1 text-sm">
-            <Row k="Subtotal" v={`₹${subtotal}`} />
-            {discount > 0 && <Row k={<span style={{ color: "var(--teal)" }}>3hr+ discount (12%)</span>} v={<span style={{ color: "var(--teal)" }}>−₹{discount}</span>} />}
+            <Row k="Subtotal" v={formatMoney(subtotalMinor)} />
+            {discountMinor > 0 && <Row k={<span style={{ color: "var(--teal)" }}>3hr+ discount (12%)</span>} v={<span style={{ color: "var(--teal)" }}>−{formatMoney(discountMinor)}</span>} />}
           </div>
           <div className="mt-2 flex items-center justify-between text-lg font-bold">
-            <span>Total</span><span>₹{total}</span>
+            <span>Total</span><span>{formatMoney(totalMinor)}</span>
           </div>
           {duration < 3 && (
             <div className="my-3 rounded-lg border p-2 text-xs" style={{ borderColor: "var(--teal)", color: "var(--teal)" }}>
@@ -229,9 +250,9 @@ function BookPage() {
               <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" /> <span>{error}</span>
             </div>
           )}
-          <button disabled={submitting} onClick={confirm} className="mt-3 h-12 w-full rounded-xl font-semibold disabled:opacity-60"
+          <button disabled={submitting || !worker} onClick={confirm} className="mt-3 h-12 w-full rounded-xl font-semibold disabled:opacity-60"
             style={{ background: "var(--teal)", color: "var(--background)" }}>
-            {submitting ? "Confirming…" : `Confirm booking · ₹${total}`}
+            {submitting ? "Confirming…" : `Confirm booking · ${formatMoney(totalMinor)}`}
           </button>
         </aside>
       </div>
@@ -241,6 +262,42 @@ function BookPage() {
 
 function Pill({ children, color, bg }: { children: React.ReactNode; color: string; bg: string }) {
   return <span className="rounded-full px-2 py-0.5 font-medium" style={{ color, background: bg }}>{children}</span>;
+}
+function WorkerSkeletons() {
+  // A skeleton, never a blank screen (SAD §12 / accessibility NFR).
+  return (
+    <div className="grid gap-3 md:grid-cols-2">
+      {[0, 1].map((i) => (
+        <div key={i} className="animate-pulse rounded-2xl border border-border bg-card p-4">
+          <div className="flex items-center gap-3">
+            <div className="h-12 w-12 rounded-full bg-muted" />
+            <div className="flex-1 space-y-2">
+              <div className="h-3 w-24 rounded bg-muted" />
+              <div className="h-2.5 w-32 rounded bg-muted" />
+            </div>
+          </div>
+          <div className="mt-3 h-2.5 w-40 rounded bg-muted" />
+          <div className="mt-3 h-5 w-20 rounded bg-muted" />
+        </div>
+      ))}
+    </div>
+  );
+}
+function ResultNote({ children, tone }: { children: React.ReactNode; tone?: "error" }) {
+  const color = tone === "error" ? "var(--coral, #ff7a7a)" : "var(--muted-foreground)";
+  return (
+    <div className="flex items-start gap-2 rounded-xl border border-border bg-card p-4 text-sm" style={{ color }}>
+      {tone === "error" && <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />}
+      <span>{children}</span>
+    </div>
+  );
+}
+function NotConfigured() {
+  return (
+    <ResultNote tone="error">
+      Supabase isn't configured. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in .env, then restart the dev server.
+    </ResultNote>
+  );
 }
 function Row({ k, v }: { k: React.ReactNode; v: React.ReactNode }) {
   return <div className="flex items-center justify-between"><span className="text-muted-foreground">{k}</span><span className="font-medium">{v}</span></div>;
