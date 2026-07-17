@@ -1,0 +1,544 @@
+<title>Casai — Phased MVP Delivery Plan</title>
+<style>
+  :root{
+    --forest:#0E3D33; --teal:#0F6E56; --teal-2:#127a5f;
+    --gold:#C9A24A; --gold-soft:#E7CE92;
+    --ink:#12201C; --body:#2b3a34; --muted:#5f6f68; --faint:#84918b; --hair:#dde5e1;
+    --ground:#f5f8f6; --card:#ffffff; --figure:#fbfaf5; --code:#eef3f1;
+    --good:#1e8a5a; --good-bg:#e4f3ea;
+    --build:#b9791a; --build-bg:#f8eed9;
+    --stub:#5b6b86; --stub-bg:#e8ecf3;
+    --gap:#b4442e; --gap-bg:#f7e6e1;
+    --shadow:0 1px 2px rgba(14,61,51,.06),0 6px 24px rgba(14,61,51,.06);
+    --mono:ui-monospace,"Cascadia Code","SF Mono",Consolas,"Liberation Mono",monospace;
+    --sans:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",sans-serif;
+  }
+  @media (prefers-color-scheme:dark){
+    :root{
+      --forest:#7fd8bd; --teal:#5fc8a8; --teal-2:#7fd8bd; --gold:#e7c574; --gold-soft:#6b5a2c;
+      --ink:#eaf1ed; --body:#c3d0ca; --muted:#8ea59c; --faint:#6d827a; --hair:#22332c;
+      --ground:#0b1310; --card:#111e19; --figure:#f7f5ee; --code:#132019;
+      --good:#4cc98a; --good-bg:#123526; --build:#e0a94a; --build-bg:#3a2e12;
+      --stub:#9fb0cc; --stub-bg:#1f2836; --gap:#e0765c; --gap-bg:#3a1f18;
+      --shadow:0 1px 2px rgba(0,0,0,.3),0 8px 30px rgba(0,0,0,.35);
+    }
+  }
+  :root[data-theme="light"]{
+    --forest:#0E3D33; --teal:#0F6E56; --teal-2:#127a5f; --gold:#C9A24A; --gold-soft:#E7CE92;
+    --ink:#12201C; --body:#2b3a34; --muted:#5f6f68; --faint:#84918b; --hair:#dde5e1;
+    --ground:#f5f8f6; --card:#fff; --figure:#fbfaf5; --code:#eef3f1;
+    --good:#1e8a5a; --good-bg:#e4f3ea; --build:#b9791a; --build-bg:#f8eed9;
+    --stub:#5b6b86; --stub-bg:#e8ecf3; --gap:#b4442e; --gap-bg:#f7e6e1;
+    --shadow:0 1px 2px rgba(14,61,51,.06),0 6px 24px rgba(14,61,51,.06);
+  }
+  :root[data-theme="dark"]{
+    --forest:#7fd8bd; --teal:#5fc8a8; --teal-2:#7fd8bd; --gold:#e7c574; --gold-soft:#6b5a2c;
+    --ink:#eaf1ed; --body:#c3d0ca; --muted:#8ea59c; --faint:#6d827a; --hair:#22332c;
+    --ground:#0b1310; --card:#111e19; --figure:#f7f5ee; --code:#132019;
+    --good:#4cc98a; --good-bg:#123526; --build:#e0a94a; --build-bg:#3a2e12;
+    --stub:#9fb0cc; --stub-bg:#1f2836; --gap:#e0765c; --gap-bg:#3a1f18;
+    --shadow:0 1px 2px rgba(0,0,0,.3),0 8px 30px rgba(0,0,0,.35);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--ground);color:var(--body);font-family:var(--sans);
+    font-size:16.5px;line-height:1.62;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:1180px;margin:0 auto;padding:0 24px;
+    display:grid;grid-template-columns:212px minmax(0,1fr);gap:44px}
+  a{color:var(--teal);text-decoration:none} a:hover{text-decoration:underline}
+
+  header.mast{grid-column:1/-1;border-bottom:1px solid var(--hair);padding:52px 0 30px;margin-bottom:8px}
+  .eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.16em;text-transform:uppercase;
+    color:var(--teal);display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .eyebrow .dot{width:6px;height:6px;border-radius:50%;background:var(--gold)}
+  h1.title{font-size:clamp(30px,4.6vw,50px);line-height:1.04;letter-spacing:-.02em;color:var(--ink);
+    font-weight:800;margin:18px 0 14px;text-wrap:balance;max-width:17ch}
+  .lede{font-size:19px;color:var(--muted);max-width:64ch;margin:0}
+  .metabar{display:flex;flex-wrap:wrap;gap:8px 10px;margin-top:26px;font-family:var(--mono);font-size:12px}
+  .metabar span{background:var(--card);border:1px solid var(--hair);border-radius:6px;padding:5px 10px;color:var(--muted)}
+  .metabar b{color:var(--ink);font-weight:600}
+
+  nav.toc{position:sticky;top:0;align-self:start;max-height:100vh;overflow-y:auto;padding:28px 0;
+    font-family:var(--mono);font-size:12.5px}
+  nav.toc .lbl{letter-spacing:.14em;text-transform:uppercase;color:var(--faint);font-size:10.5px;margin:0 0 12px}
+  nav.toc ol{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px}
+  nav.toc a{display:flex;gap:9px;color:var(--muted);padding:5px 8px;border-radius:6px;border-left:2px solid transparent}
+  nav.toc a:hover{color:var(--ink);background:var(--code);text-decoration:none}
+  nav.toc a .n{color:var(--gold);font-weight:600;min-width:14px}
+  main{padding:12px 0 90px;min-width:0}
+
+  section{margin:0 0 20px;scroll-margin-top:20px}
+  .sec-head{display:flex;align-items:baseline;gap:14px;margin:52px 0 20px}
+  .sec-head .num{font-family:var(--mono);font-size:13px;color:var(--gold);font-weight:700;
+    border:1px solid var(--gold-soft);border-radius:6px;padding:3px 8px;flex:none}
+  h2{font-size:clamp(22px,2.7vw,30px);letter-spacing:-.015em;color:var(--ink);font-weight:750;margin:0;
+    line-height:1.12;text-wrap:balance}
+  h3{font-size:18.5px;color:var(--ink);font-weight:680;margin:34px 0 10px;letter-spacing:-.01em}
+  h4{font-size:14px;font-family:var(--mono);letter-spacing:.02em;color:var(--teal);text-transform:uppercase;margin:24px 0 8px}
+  p{margin:0 0 14px;max-width:70ch}
+  strong{color:var(--ink);font-weight:650}
+  ul{margin:0 0 16px;padding-left:20px;max-width:70ch} li{margin:6px 0}
+  code{font-family:var(--mono);font-size:.86em;background:var(--code);color:var(--forest);
+    padding:1px 6px;border-radius:5px;border:1px solid var(--hair)}
+
+  .note{border:1px solid var(--hair);border-left:3px solid var(--gold);background:var(--card);
+    border-radius:8px;padding:16px 18px;margin:20px 0;box-shadow:var(--shadow)}
+  .note.warn{border-left-color:var(--gap)} .note.key{border-left-color:var(--teal)}
+  .note .h{font-family:var(--mono);font-size:11px;letter-spacing:.13em;text-transform:uppercase;color:var(--muted);margin:0 0 6px}
+  .note p{margin:0;font-size:15px}
+
+  .pill{font-family:var(--mono);font-size:11px;font-weight:600;padding:2px 8px;border-radius:999px;
+    white-space:nowrap;display:inline-block;text-transform:uppercase}
+  .p-live{color:var(--good);background:var(--good-bg)}
+  .p-build{color:var(--build);background:var(--build-bg)}
+  .p-stub{color:var(--stub);background:var(--stub-bg)}
+  .p-gap{color:var(--gap);background:var(--gap-bg)}
+
+  .tbl-wrap{overflow-x:auto;margin:18px 0;border:1px solid var(--hair);border-radius:10px;
+    box-shadow:var(--shadow);background:var(--card)}
+  table{border-collapse:collapse;width:100%;font-size:14px;min-width:520px}
+  th{font-family:var(--mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;text-align:left;
+    color:var(--muted);font-weight:600;background:var(--code);padding:10px 14px;border-bottom:1px solid var(--hair);white-space:nowrap}
+  td{padding:11px 14px;border-bottom:1px solid var(--hair);vertical-align:top}
+  tr:last-child td{border-bottom:none}
+  td b{color:var(--ink)} .num-col{font-variant-numeric:tabular-nums;font-family:var(--mono)}
+
+  .grid{display:grid;gap:16px;margin:20px 0}
+  .g2{grid-template-columns:repeat(2,1fr)} .g3{grid-template-columns:repeat(3,1fr)}
+  .card{background:var(--card);border:1px solid var(--hair);border-radius:10px;padding:18px;box-shadow:var(--shadow)}
+  .card .t{font-weight:680;color:var(--ink);margin:0 0 6px;font-size:15.5px}
+  .card p{font-size:13.5px;color:var(--muted);margin:0}
+  .card ul{font-size:13.5px;margin:8px 0 0;padding-left:18px;color:var(--muted)}
+
+  /* Phase blocks */
+  .phase{background:var(--card);border:1px solid var(--hair);border-radius:12px;margin:20px 0;
+    box-shadow:var(--shadow);overflow:hidden}
+  .phase.is-mvp{border-color:var(--gold);border-width:2px}
+  .phase-hd{display:flex;align-items:center;gap:14px;padding:16px 20px;border-bottom:1px solid var(--hair);
+    background:var(--code);flex-wrap:wrap}
+  .phase-hd .pn{font-family:var(--mono);font-weight:700;font-size:12px;color:#fff;background:var(--forest);
+    border-radius:6px;padding:4px 9px;flex:none}
+  :root[data-theme="dark"] .phase-hd .pn{color:#0b1310}
+  @media (prefers-color-scheme:dark){.phase-hd .pn{color:#0b1310}}
+  .phase-hd .pt{font-weight:700;color:var(--ink);font-size:17px;letter-spacing:-.01em;flex:1;min-width:180px}
+  .phase-hd .wk{font-family:var(--mono);font-size:11.5px;color:var(--muted);border:1px solid var(--hair);
+    background:var(--card);border-radius:999px;padding:3px 10px}
+  .phase-bd{padding:18px 20px}
+  .phase-bd .goal{font-size:15px;color:var(--body);margin:0 0 14px;max-width:72ch}
+  .cols{display:grid;grid-template-columns:1.35fr 1fr;gap:22px}
+  .cols h5{font-family:var(--mono);font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;
+    color:var(--faint);margin:0 0 8px;font-weight:600}
+  .cols ul{margin:0;padding-left:17px;font-size:13.8px;max-width:none}
+  .cols li{margin:5px 0}
+  .exit{background:var(--good-bg);border-radius:8px;padding:12px 14px;border:1px solid transparent}
+  .exit h5{color:var(--good)}
+  .exit ul{color:var(--body)}
+  .riskline{margin-top:14px;padding-top:12px;border-top:1px dashed var(--hair);font-size:13.3px;color:var(--muted)}
+  .riskline b{font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--gap)}
+  .mvpflag{display:flex;align-items:center;gap:10px;background:var(--gold);color:#3a2c06;
+    font-family:var(--mono);font-size:11.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;
+    padding:7px 20px}
+
+  figure{margin:24px 0;border:1px solid var(--hair);border-radius:12px;overflow:hidden;
+    box-shadow:var(--shadow);background:var(--figure)}
+  figure .cap{font-family:var(--mono);font-size:11.5px;letter-spacing:.04em;color:#5f6f68;padding:11px 16px;
+    border-bottom:1px solid #e6e2d4;background:#f2efe4;text-transform:uppercase}
+  .mermaid{padding:20px 16px;overflow-x:auto;background:var(--figure);text-align:center;color:#12201C}
+  .mermaid svg{max-width:100%;height:auto}
+
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin:22px 0}
+  .stat{background:var(--card);border:1px solid var(--hair);border-radius:10px;padding:16px;box-shadow:var(--shadow)}
+  .stat .v{font-size:26px;font-weight:800;color:var(--ink);letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+  .stat .v small{font-size:13px;color:var(--gold);font-weight:700}
+  .stat .k{font-family:var(--mono);font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-top:4px}
+
+  footer{grid-column:1/-1;border-top:1px solid var(--hair);margin-top:40px;padding:26px 0 60px;
+    font-family:var(--mono);font-size:12px;color:var(--faint);display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px}
+
+  @media (max-width:880px){
+    .wrap{grid-template-columns:1fr;gap:0}
+    nav.toc{position:static;max-height:none;padding:8px 0 20px;border-bottom:1px solid var(--hair);margin-bottom:8px}
+    nav.toc ol{flex-direction:row;flex-wrap:wrap;gap:6px}
+    nav.toc a{border-left:none;border:1px solid var(--hair)}
+    .g2,.g3,.cols{grid-template-columns:1fr}
+    .stats{grid-template-columns:repeat(2,1fr)}
+  }
+  @media (prefers-reduced-motion:no-preference){html{scroll-behavior:smooth}}
+</style>
+
+<div class="wrap">
+  <header class="mast">
+    <div class="eyebrow"><span class="dot"></span> Delivery Plan · v1.0 · companion to SAD v1.0</div>
+    <h1 class="title">Casai: phased MVP delivery</h1>
+    <p class="lede">What we build, in what order, and why that order — sequenced by dependency and risk rather than by feature wish-list. Six phases from an empty backend to a working transaction loop and beyond.</p>
+    <div class="metabar">
+      <span><b>MVP ships</b> Week 11</span>
+      <span><b>v1 complete</b> Week 18</span>
+      <span><b>Beachhead</b> Goregaon W → Andheri</span>
+      <span><b>Team</b> 5–6 + ML from P4</span>
+      <span><b>Author</b> Solution Architecture</span>
+    </div>
+  </header>
+
+  <nav class="toc">
+    <p class="lbl">Contents</p>
+    <ol>
+      <li><a href="#s1"><span class="n">1</span> What the MVP is</a></li>
+      <li><a href="#s2"><span class="n">2</span> Sequencing rules</a></li>
+      <li><a href="#s3"><span class="n">3</span> The phase plan</a></li>
+      <li><a href="#s4"><span class="n">4</span> Timeline</a></li>
+      <li><a href="#s5"><span class="n">5</span> Scope in / out</a></li>
+      <li><a href="#s6"><span class="n">6</span> Long-lead items</a></li>
+      <li><a href="#s7"><span class="n">7</span> Team &amp; risks</a></li>
+    </ol>
+  </nav>
+
+  <main>
+
+    <!-- 1 -->
+    <section id="s1">
+      <div class="sec-head"><span class="num">01</span><h2>What the MVP is — and isn't</h2></div>
+      <p>The PRD defines an "MVP Sprint" as seven items: OTP registration, a booking confirmation screen, a date selector, worker pre-selection, moving the NSM dashboard to ops, a Passport tab fix, and pricing consistency. <strong>Six of those seven are front-end fixes, and the list quietly assumes a backend exists.</strong> None does — no database, no API, no auth server. So the real MVP is considerably <em>larger</em> beneath the surface and should be <em>smaller</em> on it.</p>
+      <div class="note key">
+        <p class="h">MVP definition</p>
+        <p>One RWA zone in Mumbai. A household finds a <strong>verified</strong> worker, books, and pays; the worker is dispatched, checks in by GPS, and gets paid. <strong>The transaction loop closes end to end with real identity and real money.</strong> Everything else — AI, NRI alerts, Academy, loans — is deliberately after. Home Health Score is not deferred but <strong>retired</strong>.</p>
+      </div>
+      <div class="stats">
+        <div class="stat"><div class="v">50</div><div class="k">Verified workers</div></div>
+        <div class="stat"><div class="v">40</div><div class="k">Households</div></div>
+        <div class="stat"><div class="v">1.8</div><div class="k">NSM target</div></div>
+        <div class="stat"><div class="v">11<small> wks</small></div><div class="k">To MVP</div></div>
+      </div>
+      <p>The MVP is a <strong>supply-and-transaction</strong> release, not a feature release. Its job is to prove the loop works and to start producing the data everything downstream depends on.</p>
+    </section>
+
+    <!-- 2 -->
+    <section id="s2">
+      <div class="sec-head"><span class="num">02</span><h2>The five rules that set the order</h2></div>
+      <div class="grid g2">
+        <div class="card"><p class="t">1 · Supply before demand</p><p>A household cannot book a verified worker who doesn't exist. Fifty verified workers in the beachhead zone is a hard precondition for any demand-side work — so worker onboarding and eKYC land <b>before</b> the booking loop.</p></div>
+        <div class="card"><p class="t">2 · AI comes after data, not before</p><p>No-show and churn models train on booking history. At zero bookings there is nothing to learn. Shipping AI in the MVP is not ambitious, it is <b>impossible</b> — the loop must run first and generate the training set.</p></div>
+        <div class="card"><p class="t">3 · Calendar-bound work starts on day 1</p><p>SMS DLT registration, Aadhaar AUA/KUA licensing and gateway KYC are measured in weeks of waiting, not days of effort. They begin in week 1 regardless of build order, or they become the critical path.</p></div>
+        <div class="card"><p class="t">4 · Fork the prototype, don't rewrite it</p><p>The Lovable build is real React and its UX is validated. We fork it, strip the seed-data module, and attach a real data layer. Rewriting the UI would cost months and buy nothing.</p></div>
+        <div class="card"><p class="t">5 · Walking skeleton, then thicken</p><p>A thin end-to-end slice reaches production in week 4 — login, real worker from Postgres, deployed. Integration risk is paid down early instead of discovered in a big-bang merge.</p></div>
+        <div class="card"><p class="t">Every phase is demo-able</p><p>Each phase ends with a measurable gate and something a stakeholder can use — not a "backend sprint" with nothing to show.</p></div>
+      </div>
+      <div class="note warn">
+        <p class="h">The sequencing argument that matters most</p>
+        <p>Casai's positioning is "AI home intelligence." That makes it tempting to build the AI first. <strong>Rule 2 forbids it.</strong> AI-01 (matching) needs reliability histories; AI-02 (no-show) needs worker no-show patterns; AI-05 (churn) needs booking-frequency deltas. The prototype fakes all of this with static numbers, which is exactly why it feels finished and isn't. The MVP's real product is <em>the data exhaust that makes phase 4 possible</em>.</p>
+      </div>
+    </section>
+
+    <!-- 3 -->
+    <section id="s3">
+      <div class="sec-head"><span class="num">03</span><h2>The phase plan</h2></div>
+
+      <!-- P0 -->
+      <div class="phase">
+        <div class="phase-hd"><span class="pn">P0</span><span class="pt">Foundations &amp; walking skeleton</span><span class="wk">Weeks 1–4</span></div>
+        <div class="phase-bd">
+          <p class="goal">Stand up the spine everything hangs on, and get one thin vertical slice into production. Start every long-lead procurement item on day one.</p>
+          <div class="cols">
+            <div>
+              <h5>Ships</h5>
+              <ul>
+                <li>Supabase project in <b>India region</b>; core schema (Household, Worker, Booking, Subscription)</li>
+                <li><b>RLS policies</b> per bounded context — the real fix for client-side roles</li>
+                <li>Phone OTP auth; JWT carrying the context claim</li>
+                <li>Fork Lovable FE; delete <code>gharseva.state</code> seed module; typed data layer over Supabase</li>
+                <li><b>Context-aware shell</b> — <code>/app</code> · <code>/worker</code> · <code>/nri</code> · <code>/ops</code> route groups, nav driven by the server claim</li>
+                <li><b>Catalog &amp; Pricing service</b> — one source for ₹ and $</li>
+                <li>CI/CD, environments, observability baseline</li>
+              </ul>
+            </div>
+            <div class="exit">
+              <h5>Exit criteria</h5>
+              <ul>
+                <li>A real user OTP-logs in on prod and sees a worker served from Postgres</li>
+                <li>Automated test proves a household JWT <b>cannot</b> read ops/churn tables</li>
+                <li>One price renders identically on every surface, from catalog</li>
+                <li>All four procurement tracks formally started</li>
+              </ul>
+            </div>
+          </div>
+          <p class="riskline"><b>Risk</b> — DLT registration delay blocks SMS OTP. Mitigate: email OTP on staging; DLT filed week 1. <b>Debt closed</b> — client-side auth · ops-metric leak · Passport exposure · worker-nav · pricing split.</p>
+        </div>
+      </div>
+
+      <!-- P1 -->
+      <div class="phase">
+        <div class="phase-hd"><span class="pn">P1</span><span class="pt">Supply — verified workers live</span><span class="wk">Weeks 4–7</span></div>
+        <div class="phase-bd">
+          <p class="goal">Fifty eKYC- and police-verified workers live in the beachhead zone. Until this exists, every demand-side feature is worthless.</p>
+          <div class="cols">
+            <div>
+              <h5>Ships</h5>
+              <ul>
+                <li>The existing 8-step onboarding wizard wired to a real backend</li>
+                <li><b>Aadhaar eKYC</b> via licensed AUA/KUA aggregator</li>
+                <li>Document upload (PAN, police) → Storage; <b>ops review queue</b> (internal tool, not a custom build)</li>
+                <li>Worker context shell + its own nav</li>
+                <li><b>Canonical Worker record</b> — single source for jobs / on-time / rating</li>
+                <li>Profile goes live on ops approval; worker notified by SMS</li>
+              </ul>
+            </div>
+            <div class="exit">
+              <h5>Exit criteria</h5>
+              <ul>
+                <li><b>50 workers</b> eKYC + police verified and live in zone</li>
+                <li>Worker stats identical across every surface (contract test)</li>
+                <li>Ops approves or rejects within 24h</li>
+              </ul>
+            </div>
+          </div>
+          <p class="riskline"><b>Risk</b> — AUA/KUA licensing slips. Mitigate: manual ops-assisted verification for the first cohort; the wizard already models the wait well. <b>Debt closed</b> — 312/347/412 job-count divergence.</p>
+        </div>
+      </div>
+
+      <!-- P2 - MVP -->
+      <div class="phase is-mvp">
+        <div class="mvpflag">◆ MVP ships at the end of this phase</div>
+        <div class="phase-hd"><span class="pn">P2</span><span class="pt">The transaction loop</span><span class="wk">Weeks 7–11</span></div>
+        <div class="phase-bd">
+          <p class="goal">Money moves and the loop closes: book → pay → dispatch → GPS check-in → payout. This is the MVP.</p>
+          <div class="cols">
+            <div>
+              <h5>Ships</h5>
+              <ul>
+                <li>Booking service — create, slots, <b>date selector</b> (14 days), worker pre-selection</li>
+                <li><b>Booking confirmation screen</b> + <code>booking.confirmed</code> event <span class="pill p-gap">was critical gap</span></li>
+                <li>Payments — Razorpay UPI/cards; worker payout ledger (48h SLA)</li>
+                <li><b>GPS check-in</b> (geofence) → attendance + reliability computation</li>
+                <li>Post-booking push notification &lt;60s (FCM)</li>
+                <li>Post-service review → feeds reliability &amp; skill tags</li>
+                <li>Replacement SLA timer — ops-manual dispatch is acceptable here</li>
+              </ul>
+            </div>
+            <div class="exit">
+              <h5>Exit criteria — the MVP gate</h5>
+              <ul>
+                <li>Household books &amp; pays; worker checks in by GPS; worker is paid — <b>real money, end to end</b></li>
+                <li>Confirmation + push within 60s, measured</li>
+                <li>NSM instrumented; 48h-second-booking guardrail measurable</li>
+                <li><b>40 households</b> onboarded in zone</li>
+              </ul>
+            </div>
+          </div>
+          <p class="riskline"><b>Risk</b> — GPS accuracy in dense Mumbai buildings. Mitigate: tuned geofence radius + manual check-in fallback with ops audit. <b>Note</b> — check-in is built here because reliability and SLA need it, which is what makes phase 3 cheap.</p>
+        </div>
+      </div>
+
+      <!-- P3 -->
+      <div class="phase">
+        <div class="phase-hd"><span class="pn">P3</span><span class="pt">NRI care — highest LTV</span><span class="wk">Weeks 11–14</span></div>
+        <div class="phase-bd">
+          <p class="goal">Turn the check-in events P2 already emits into the NRI product. Small increment, largest revenue per user (₹25,164 LTV vs ₹10,800).</p>
+          <div class="cols">
+            <div>
+              <h5>Ships</h5>
+              <ul>
+                <li>NRI onboarding wired — email OTP, international numbers</li>
+                <li><b>Household ↔ NRI consent linking</b> (code + expiry, both sides opt in)</li>
+                <li><b>Stripe</b> for $ Care+ subscription; single ledger with Razorpay</li>
+                <li><b>GPS check-in → dual-timezone alert &lt;60s</b>, timezone resolved from profile</li>
+                <li>No-show alert with replacement ETA; weekly digest</li>
+                <li><code>/nri/history</code> <span class="pill p-stub">was stub</span> · Home Manager routing</li>
+              </ul>
+            </div>
+            <div class="exit">
+              <h5>Exit criteria</h5>
+              <ul>
+                <li>An NRI in London receives a check-in alert &lt;60s with <b>correct</b> dual timestamps</li>
+                <li>10 Care+ subscriptions active</li>
+                <li>Razorpay + Stripe reconcile to one ledger</li>
+              </ul>
+            </div>
+          </div>
+          <p class="riskline"><b>Risk</b> — international notification latency; dual-gateway reconciliation. <b>Debt closed</b> — PST/UK timezone bug · NRI history stub.</p>
+        </div>
+      </div>
+
+      <!-- P4 -->
+      <div class="phase">
+        <div class="phase-hd"><span class="pn">P4</span><span class="pt">Make the AI real</span><span class="wk">Weeks 14–18</span></div>
+        <div class="phase-bd">
+          <p class="goal">By now ~3 months of booking history exists — enough to train on. Replace the prototype's static numbers with live engines.</p>
+          <div class="cols">
+            <div>
+              <h5>Ships</h5>
+              <ul>
+                <li><b>AI-01 Matching</b> — real ranking, P95 &lt;500ms via Redis</li>
+                <li><b>AI-02 No-show</b> + auto-escalation above 70% risk</li>
+                <li><b>AI-03 Voice</b> → wired to the real booking engine</li>
+                <li><b>AI-05 Churn</b> → ops-only read model, never household-facing</li>
+              </ul>
+            </div>
+            <div class="exit">
+              <h5>Exit criteria</h5>
+              <ul>
+                <li>No-show prediction precision <b>≥70%</b> against actuals</li>
+                <li>Matching P95 &lt;500ms</li>
+                <li>Churn score unreachable from any household JWT</li>
+              </ul>
+            </div>
+          </div>
+          <p class="riskline"><b>Risk</b> — cold start: if P2/P3 volume is thin, models underperform. Mitigate: heuristic rules behind the same API contract, swapped for models when data supports it. <b>Resolved</b> — Home Health Score (AI-04) is retired, not deferred; four engines ship here, not five.</p>
+        </div>
+      </div>
+
+      <!-- P5 -->
+      <div class="phase">
+        <div class="phase-hd"><span class="pn">P5</span><span class="pt">Ops &amp; scale</span><span class="wk">Week 18+</span></div>
+        <div class="phase-bd">
+          <p class="goal">Run the network at more than one zone, and open the worker economics that make supply self-sustaining.</p>
+          <div class="cols">
+            <div>
+              <h5>Ships</h5>
+              <ul>
+                <li><code>/ops</code> dashboard — NSM, SLA breach, churn queue, worker map</li>
+                <li>Recurring &amp; multi-worker bookings (path to NSM 4.0)</li>
+                <li>Skill Academy; NBFC loan disbursement</li>
+                <li>Zone expansion — Powai, Thane, Bandra</li>
+                <li>Track B migration, service by service, as load demands</li>
+              </ul>
+            </div>
+            <div class="exit">
+              <h5>Exit criteria</h5>
+              <ul>
+                <li>Ops acts on churn/SLA without engineering help</li>
+                <li>Second zone live with 50+ verified workers</li>
+                <li>NSM trending toward 4.0</li>
+              </ul>
+            </div>
+          </div>
+          <p class="riskline"><b>Risk</b> — premature migration to Track B. Mitigate: migrate only at a proven bottleneck, along the §06 seams.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 4 -->
+    <section id="s4">
+      <div class="sec-head"><span class="num">04</span><h2>Timeline</h2></div>
+      <p>Procurement runs in parallel from week 1 — it is the only thing that can silently become the critical path.</p>
+      <figure>
+        <div class="cap">Fig 4.1 — 18-week delivery schedule</div>
+        <pre class="mermaid">
+%%{init:{'theme':'base','themeVariables':{'primaryColor':'#EAF3F0','primaryBorderColor':'#0F6E56','primaryTextColor':'#12201C','lineColor':'#7d8c85','fontFamily':'ui-sans-serif,system-ui','fontSize':'12px'}}}%%
+gantt
+    dateFormat YYYY-MM-DD
+    axisFormat %d %b
+    todayMarker off
+    section Procurement
+    SMS DLT registration        :crit, 2026-07-20, 42d
+    Aadhaar AUA/KUA licensing   :crit, 2026-07-20, 56d
+    Razorpay + Stripe KYC       :      2026-07-20, 30d
+    section Build
+    P0 Foundations + skeleton   :active, f0, 2026-07-20, 28d
+    P1 Supply - verified workers:        f1, after f0, 21d
+    P2 Transaction loop         :crit,   f2, after f1, 28d
+    MVP LIVE                    :milestone, after f2, 0d
+    P3 NRI care                 :        f3, after f2, 21d
+    P4 Real AI engines          :        f4, after f3, 28d
+    P5 Ops and scale            :        f5, after f4, 28d
+        </pre>
+      </figure>
+      <div class="note">
+        <p class="h">Reading the chart</p>
+        <p>Aadhaar licensing (8 weeks) overlaps P0 and P1 and lands just as P1 needs it — that is deliberate and tight. If it starts even two weeks late it becomes the critical path and pushes the MVP directly. It is the single most schedule-sensitive item in the plan.</p>
+      </div>
+    </section>
+
+    <!-- 5 -->
+    <section id="s5">
+      <div class="sec-head"><span class="num">05</span><h2>Scope — in and out</h2></div>
+      <p>What makes an MVP an MVP is the "out" column. Everything below is deferred <em>on purpose</em>, with the phase that picks it up.</p>
+      <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Capability</th><th>MVP</th><th>Rationale / lands in</th></tr></thead>
+        <tbody>
+          <tr><td>OTP auth + context claim</td><td><span class="pill p-live">In</span></td><td>Nothing works without identity</td></tr>
+          <tr><td>Worker eKYC onboarding</td><td><span class="pill p-live">In</span></td><td>Supply precondition</td></tr>
+          <tr><td>Household booking + confirmation</td><td><span class="pill p-live">In</span></td><td>The loop itself</td></tr>
+          <tr><td>Payments (₹ / Razorpay) + payout</td><td><span class="pill p-live">In</span></td><td>Real money is the point</td></tr>
+          <tr><td>GPS check-in + push</td><td><span class="pill p-live">In</span></td><td>Reliability &amp; SLA depend on it</td></tr>
+          <tr><td>3 categories (cook / maid / driver)</td><td><span class="pill p-live">In</span></td><td>Matches live prototype</td></tr>
+          <tr><td>NRI alerts, Care+, Stripe</td><td><span class="pill p-build">Out</span></td><td>Phase 3 — needs check-in events first</td></tr>
+          <tr><td>All 4 AI engines</td><td><span class="pill p-build">Out</span></td><td>Phase 4 — <b>no training data exists yet</b></td></tr>
+          <tr><td>Voice booking</td><td><span class="pill p-build">Out</span></td><td>Phase 4 — depends on booking engine</td></tr>
+          <tr><td>Home Health Score + AI-04</td><td><span class="pill p-gap">Killed</span></td><td><b>Retired by decision</b> — never built; NRI dashboard serves that job</td></tr>
+          <tr><td>Ops dashboard</td><td><span class="pill p-build">Out</span></td><td>Phase 5 — internal tooling until then</td></tr>
+          <tr><td>Caregiver / nurse category</td><td><span class="pill p-build">Out</span></td><td>Phase 3 — lives in the NRI context</td></tr>
+          <tr><td>Academy, NBFC loans</td><td><span class="pill p-build">Out</span></td><td>Phase 5 — gated on canonical stats</td></tr>
+          <tr><td>Recurring / multi-worker</td><td><span class="pill p-build">Out</span></td><td>Phase 5 — the NSM 4.0 lever</td></tr>
+          <tr><td>WhatsApp digest</td><td><span class="pill p-build">Out</span></td><td>Phase 5 — push/email suffice first</td></tr>
+        </tbody>
+      </table>
+      </div>
+    </section>
+
+    <!-- 6 -->
+    <section id="s6">
+      <div class="sec-head"><span class="num">06</span><h2>Long-lead items — start week 1</h2></div>
+      <p>These are bought and waited for, not built. Effort is trivial; elapsed time is not. Each has an owner and a start-by date, because slipping any of them slips the MVP without a single line of code being late.</p>
+      <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Item</th><th>Lead time</th><th>Blocks</th><th>Owner</th></tr></thead>
+        <tbody>
+          <tr><td><b>Aadhaar AUA/KUA</b> (via aggregator)</td><td class="num-col">~8 weeks</td><td>P1 — all worker verification, i.e. all supply</td><td>Legal + Ops</td></tr>
+          <tr><td><b>SMS DLT registration</b> (TRAI)</td><td class="num-col">~6 weeks</td><td>P0/P2 — every OTP and notification</td><td>Ops</td></tr>
+          <tr><td>Razorpay merchant KYC</td><td class="num-col">~3–4 weeks</td><td>P2 — payments &amp; payouts</td><td>Finance</td></tr>
+          <tr><td>Stripe account (intl)</td><td class="num-col">~2–4 weeks</td><td>P3 — $ Care+</td><td>Finance</td></tr>
+          <tr><td>Police-verification vendor</td><td class="num-col">~4 weeks</td><td>P1 — worker go-live</td><td>Ops</td></tr>
+          <tr><td>RWA agreements (beachhead)</td><td class="num-col">~4 weeks</td><td>P2 — household acquisition</td><td>Growth</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <div class="note warn">
+        <p class="h">If one thing is taken from this plan</p>
+        <p><strong>File the Aadhaar and DLT paperwork in week 1.</strong> They are the only items that can add six weeks to the MVP while every engineer is fully occupied and every sprint looks green.</p>
+      </div>
+    </section>
+
+    <!-- 7 -->
+    <section id="s7">
+      <div class="sec-head"><span class="num">07</span><h2>Team &amp; plan risks</h2></div>
+      <h4>Capacity assumption</h4>
+      <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Role</th><th>Count</th><th>Phases</th></tr></thead>
+        <tbody>
+          <tr><td>Frontend (React/TS)</td><td class="num-col">2</td><td>P0 → P5</td></tr>
+          <tr><td>Backend (TS / Supabase → NestJS)</td><td class="num-col">2</td><td>P0 → P5</td></tr>
+          <tr><td>ML engineer (Python)</td><td class="num-col">1</td><td>P4 onward</td></tr>
+          <tr><td>Ops / verification</td><td class="num-col">1–2</td><td>P1 onward</td></tr>
+          <tr><td>PM + design</td><td class="num-col">shared</td><td>throughout</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <p>The plan assumes <strong>2-week sprints</strong> and that the Lovable front-end is forked rather than rebuilt. Rebuilding the UI adds roughly six weeks and is not recommended.</p>
+
+      <h4>Risks to the plan itself</h4>
+      <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Risk</th><th>Impact</th><th>Mitigation</th></tr></thead>
+        <tbody>
+          <tr><td>Aadhaar licensing slips</td><td>MVP slips week-for-week — no supply, no product</td><td>File week 1; manual ops verification for first cohort</td></tr>
+          <tr><td>Prototype mistaken for "nearly done"</td><td>Backend effort under-funded; MVP date fantasy</td><td>This plan + the SAD's §07 evidence: zero backend exists</td></tr>
+          <tr><td>Pressure to ship AI in MVP</td><td>Fake AI ships; no data to train on; trust damaged</td><td>Rule 2 — heuristics behind the real API contract until P4</td></tr>
+          <tr><td>Supply/demand imbalance in zone</td><td>Bookings fail; NSM never reaches 1.8</td><td>Gate household acquisition on 50 live workers</td></tr>
+          <tr><td>Scope creep from a rich prototype</td><td>Every screen looks buildable because it's drawn</td><td>The "out" column in §05 is the contract</td></tr>
+        </tbody>
+      </table>
+      </div>
+
+      <div class="note key">
+        <p class="h">Bottom line</p>
+        <p>Eleven weeks to a closed transaction loop in one Mumbai zone; eighteen to NRI plus real AI. The plan's spine is simple: <strong>verify supply, close the loop, harvest the data, then make the AI true</strong> — in that order, because no other order actually works.</p>
+      </div>
+    </section>
+
+    <footer>
+      <span>Casai · Phased MVP Delivery Plan · v1.0</span>
+      <span>Companion to Solution Architecture Document v1.0</span>
+    </footer>
+  </main>
+</div>

@@ -8,3 +8,12 @@ $RECYCLE.BIN/
 .vscode/
 .idea/
 *.swp
+
+# Node
+node_modules/
+npm-debug.log*
+
+# Secrets — never commit. Supabase anon key is public, but keep keys out of git.
+.env
+.env.*
+!.env.example

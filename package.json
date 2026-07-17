@@ -1,0 +1,19 @@
+{
+  "name": "casai",
+  "version": "0.1.0",
+  "description": "Casai — AI home services platform for India. Phase P0: platform spine.",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test tests/rls/*.test.mjs",
+    "test:rls": "node --test tests/rls/*.test.mjs"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/11820965/AIPM-BYOP.git"
+  },
+  "license": "UNLICENSED",
+  "devDependencies": {
+    "@electric-sql/pglite": "^0.5.4"
+  }
+}
