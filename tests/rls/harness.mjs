@@ -65,6 +65,8 @@ export async function freshDb() {
   for (const file of [
     'supabase/migrations/0001_core_schema.sql',
     'supabase/migrations/0002_rls_policies.sql',
+    'supabase/migrations/0004_booking_details.sql',
+    'supabase/migrations/0005_fix_worker_live_check.sql',
     'supabase/seed.sql',
   ]) {
     const sql = await readFile(join(ROOT, file), 'utf8');

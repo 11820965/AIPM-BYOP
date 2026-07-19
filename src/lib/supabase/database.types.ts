@@ -72,6 +72,8 @@ export type HouseholdRow = {
   created_at: string;
 };
 
+export type PaymentMethod = "upi" | "card" | "cash";
+
 export type BookingRow = {
   booking_id: string;
   household_id: string;
@@ -84,24 +86,31 @@ export type BookingRow = {
   sla_breach: boolean;
   total_amount_minor: number;
   currency: string;
+  service_address: string | null;
+  notes: string | null;
+  payment_method: PaymentMethod;
   created_at: string;
 };
 
+// Shaped to satisfy supabase-js's GenericSchema so insert/update payloads
+// type-check (each table needs Row/Insert/Update/Relationships; the schema
+// needs Views/Functions/Enums/CompositeTypes).
 export type Database = {
   public: {
     Tables: {
-      profile: { Row: ProfileRow; Insert: Partial<ProfileRow>; Update: Partial<ProfileRow> };
-      household: { Row: HouseholdRow; Insert: Partial<HouseholdRow>; Update: Partial<HouseholdRow> };
-      booking: { Row: BookingRow; Insert: Partial<BookingRow>; Update: Partial<BookingRow> };
-      service_catalog: {
-        Row: ServiceCatalogRow;
-        Insert: never;
-        Update: never; // read-only to app roles — see 0002 grants
-      };
-      plan_catalog: { Row: PlanCatalogRow; Insert: never; Update: never };
+      profile: { Row: ProfileRow; Insert: Partial<ProfileRow>; Update: Partial<ProfileRow>; Relationships: [] };
+      household: { Row: HouseholdRow; Insert: Partial<HouseholdRow>; Update: Partial<HouseholdRow>; Relationships: [] };
+      booking: { Row: BookingRow; Insert: Partial<BookingRow>; Update: Partial<BookingRow>; Relationships: [] };
+      // read-only to app roles (see 0002 grants) — insert/update kept as Row
+      // shape so the generic resolves, but the DB refuses writes.
+      service_catalog: { Row: ServiceCatalogRow; Insert: Partial<ServiceCatalogRow>; Update: Partial<ServiceCatalogRow>; Relationships: [] };
+      plan_catalog: { Row: PlanCatalogRow; Insert: Partial<PlanCatalogRow>; Update: Partial<PlanCatalogRow>; Relationships: [] };
     };
     Views: {
-      worker_public: { Row: WorkerPublic };
+      worker_public: { Row: WorkerPublic; Relationships: [] };
     };
+    Functions: Record<string, never>;
+    Enums: Record<string, never>;
+    CompositeTypes: Record<string, never>;
   };
 };

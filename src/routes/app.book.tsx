@@ -3,10 +3,11 @@ import { AppShell } from "@/components/layout/AppShell";
 import { useEffect, useState } from "react";
 import { useViewport } from "@/lib/app/state";
 import { Star, Shield, Sparkles, ChefHat, Car, ChevronRight, AlertCircle, Minus, Plus, Loader2 } from "lucide-react";
-import { createBooking } from "@/lib/app/bookings";
 import { useWorkers, type WorkerCard } from "@/lib/data/workers";
+import { useCreateBooking, slotToDatetime } from "@/lib/data/bookings";
 import { getService, formatServicePrice, formatMoney } from "@/lib/catalog/catalog";
 import { isSupabaseConfigured } from "@/lib/supabase/client";
+import { useSession } from "@/lib/auth/session";
 import type { ServiceCategory } from "@/lib/supabase/database.types";
 
 type BookSearch = { cat?: string };
@@ -38,9 +39,10 @@ function BookPage() {
   const [notes, setNotes] = useState<string>("");
   const [payment, setPayment] = useState<"upi" | "card" | "cash">("upi");
   const [error, setError] = useState<string>("");
-  const [submitting, setSubmitting] = useState(false);
   const { isMobile } = useViewport();
   const nav = useNavigate();
+  const { session } = useSession();
+  const createBooking = useCreateBooking();
 
   // Workers now come from Postgres (worker_public), not a seed array.
   const { data: workers = [], isLoading, error: loadError } = useWorkers(cat);
@@ -60,23 +62,32 @@ function BookPage() {
   const discountMinor = duration >= 3 ? Math.round(subtotalMinor * 0.12) : 0;
   const totalMinor = subtotalMinor - discountMinor;
 
-  const confirm = () => {
+  const confirm = async () => {
     setError("");
     if (!worker) return setError("Select a worker first.");
     if (!slot) return setError("Pick a time slot.");
     if (duration < 1) return setError("Duration must be at least 1 hour.");
     if (address.trim().length < 8) return setError("Enter a complete service address (8+ characters).");
-    setSubmitting(true);
-    // Booking still writes to the local store — the real Booking & SLA
-    // service is P2. Worker and price are now real; the write is not yet.
-    const b = createBooking({
-      workerId: worker.id,
-      workerName: worker.name,
-      service: service.displayName,
-      slot, duration, address: address.trim(), notes: notes.trim(), payment,
-      total: Math.round(totalMinor / 100),
-    });
-    setTimeout(() => nav({ to: "/app/booking/$id", params: { id: b.id } }), 300);
+    if (!session) return setError("Please sign in to confirm a booking.");
+
+    try {
+      // Real row in Postgres now, not localStorage. household_id, the
+      // verified-worker check and the amount are all enforced server-side.
+      const b = await createBooking.mutateAsync({
+        workerId: worker.id,
+        category: cat,
+        slotDatetime: slotToDatetime(slot),
+        durationHours: duration,
+        totalMinor,
+        currency: service.currency,
+        serviceAddress: address.trim(),
+        notes: notes.trim(),
+        paymentMethod: payment,
+      });
+      nav({ to: "/app/booking/$id", params: { id: b.booking_id } });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not create the booking. Try again.");
+    }
   };
 
   return (
@@ -250,9 +261,9 @@ function BookPage() {
               <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" /> <span>{error}</span>
             </div>
           )}
-          <button disabled={submitting || !worker} onClick={confirm} className="mt-3 h-12 w-full rounded-xl font-semibold disabled:opacity-60"
+          <button disabled={createBooking.isPending || !worker} onClick={confirm} className="mt-3 h-12 w-full rounded-xl font-semibold disabled:opacity-60"
             style={{ background: "var(--teal)", color: "var(--background)" }}>
-            {submitting ? "Confirming…" : `Confirm booking · ${formatMoney(totalMinor)}`}
+            {createBooking.isPending ? "Confirming…" : `Confirm booking · ${formatMoney(totalMinor)}`}
           </button>
         </aside>
       </div>
