@@ -1,7 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { AppShell } from "@/components/layout/AppShell";
+import { useState } from "react";
 import { useApp, useViewport } from "@/lib/app/state";
 import { getService, formatFromPrice } from "@/lib/catalog/catalog";
+import { useGenerateInvite } from "@/lib/data/nri";
+import { Globe2, Loader2 } from "lucide-react";
 import {
   ChefHat, Sparkles, Car,
   Brain, TrendingUp, Shield, Check, ShieldCheck, ArrowRight,
@@ -118,6 +121,9 @@ function HomePage() {
             <ArrowRight className="h-4 w-4 text-muted-foreground" />
           </Link>
 
+          {/* Invite a family member abroad (NRI linking, 0007) */}
+          <InviteFamily />
+
           {/* Subscription plans */}
           <div className="mt-6">
             <div className="mb-3 flex items-baseline justify-between">
@@ -169,5 +175,44 @@ function HomePage() {
         */}
       </div>
     </AppShell>
+  );
+}
+
+function InviteFamily() {
+  const generate = useGenerateInvite();
+  const [code, setCode] = useState<string | null>(null);
+
+  async function onInvite() {
+    try {
+      setCode(await generate.mutateAsync());
+    } catch {
+      /* surfaced below via generate.isError */
+    }
+  }
+
+  return (
+    <div className="mt-4 flex items-center gap-3 rounded-2xl border p-4"
+      style={{ borderColor: "color-mix(in oklab, var(--amber) 35%, var(--border))" }}>
+      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl" style={{ background: "color-mix(in oklab, var(--amber) 20%, transparent)", color: "var(--amber)" }}>
+        <Globe2 className="h-5 w-5" />
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="text-sm font-semibold">Invite family abroad</div>
+        {code ? (
+          <div className="mt-0.5 text-xs text-muted-foreground">
+            Share this code (valid 10 min): <span className="font-mono text-base font-bold tracking-widest" style={{ color: "var(--amber)" }}>{code}</span>
+          </div>
+        ) : (
+          <div className="mt-0.5 text-xs text-muted-foreground">Let an NRI family member monitor this home across timezones.</div>
+        )}
+        {generate.isError && <div className="mt-1 text-xs" style={{ color: "var(--coral)" }}>Couldn't create a code. Are you signed in?</div>}
+      </div>
+      <button onClick={onInvite} disabled={generate.isPending}
+        className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold disabled:opacity-50"
+        style={{ background: "var(--amber)", color: "var(--background)" }}>
+        {generate.isPending && <Loader2 className="h-3 w-3 animate-spin" />}
+        {code ? "New code" : "Get code"}
+      </button>
+    </div>
   );
 }

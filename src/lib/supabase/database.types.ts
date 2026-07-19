@@ -95,12 +95,23 @@ export type BookingRow = {
 // Shaped to satisfy supabase-js's GenericSchema so insert/update payloads
 // type-check (each table needs Row/Insert/Update/Relationships; the schema
 // needs Views/Functions/Enums/CompositeTypes).
+export type NriLinkRow = {
+  link_id: string;
+  nri_profile: string;
+  household_id: string;
+  consent_code: string | null;
+  linked_at: string | null;
+  expires_at: string | null;
+  nri_timezone: string;
+};
+
 export type Database = {
   public: {
     Tables: {
       profile: { Row: ProfileRow; Insert: Partial<ProfileRow>; Update: Partial<ProfileRow>; Relationships: [] };
       household: { Row: HouseholdRow; Insert: Partial<HouseholdRow>; Update: Partial<HouseholdRow>; Relationships: [] };
       booking: { Row: BookingRow; Insert: Partial<BookingRow>; Update: Partial<BookingRow>; Relationships: [] };
+      nri_link: { Row: NriLinkRow; Insert: Partial<NriLinkRow>; Update: Partial<NriLinkRow>; Relationships: [] };
       // read-only to app roles (see 0002 grants) — insert/update kept as Row
       // shape so the generic resolves, but the DB refuses writes.
       service_catalog: { Row: ServiceCatalogRow; Insert: Partial<ServiceCatalogRow>; Update: Partial<ServiceCatalogRow>; Relationships: [] };
@@ -109,7 +120,10 @@ export type Database = {
     Views: {
       worker_public: { Row: WorkerPublic; Relationships: [] };
     };
-    Functions: Record<string, never>;
+    Functions: {
+      generate_nri_invite: { Args: Record<string, never>; Returns: string };
+      redeem_nri_invite: { Args: { p_code: string; p_timezone: string }; Returns: { household_id: string; linked: boolean } };
+    };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;
   };

@@ -1,196 +1,174 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useState } from "react";
 import { AppShell } from "@/components/layout/AppShell";
-import { useViewport } from "@/lib/app/state";
-import { Phone, MessageCircle, HeartHandshake, Car, Shield, Star, ArrowRight } from "lucide-react";
-import { WORKERS } from "@/lib/worker/data";
+import { HeartHandshake, Car, ArrowRight, Loader2, ShieldCheck, Clock } from "lucide-react";
+import {
+  useNriLink, useLinkedHousehold, useLinkedBookings, useRedeemInvite,
+  localTimezone, timeIn, tzAbbrev,
+} from "@/lib/data/nri";
+import { getService } from "@/lib/catalog/catalog";
+import { isSupabaseConfigured } from "@/lib/supabase/client";
 
 export const Route = createFileRoute("/nri/")({ component: NriDash });
 
+const IST = "Asia/Kolkata";
+
 function NriDash() {
-  const { isMobile } = useViewport();
+  const { data: link, isLoading } = useNriLink();
+
+  if (!isSupabaseConfigured) {
+    return <AppShell title="Family at Home"><Notice>Supabase isn't configured.</Notice></AppShell>;
+  }
+  if (isLoading) {
+    return <AppShell title="Family at Home"><div className="h-40 animate-pulse rounded-2xl border border-border bg-card" /></AppShell>;
+  }
+  if (!link) return <AppShell title="Family at Home"><LinkHousehold /></AppShell>;
+  return <AppShell title="Family at Home"><LinkedDashboard link={link} /></AppShell>;
+}
+
+/** Not linked yet — redeem the code the family shared. */
+function LinkHousehold() {
   const nav = useNavigate();
-  const caregivers = WORKERS.filter((w) => w.type === "caregiver");
-  const drivers = WORKERS.filter((w) => w.type === "driver");
+  const redeem = useRedeemInvite();
+  const [code, setCode] = useState("");
+  const [error, setError] = useState<string | null>(null);
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    try {
+      await redeem.mutateAsync({ code: code.trim(), timezone: localTimezone() });
+      nav({ to: "/nri" }); // re-renders into the linked dashboard
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not link with that code.");
+    }
+  }
+
   return (
-    <AppShell title="Family at Home">
-      <section className="mb-6 rounded-2xl border p-5"
+    <div className="mx-auto max-w-md">
+      <div className="rounded-2xl border-2 p-6" style={{ borderColor: "var(--amber)" }}>
+        <ShieldCheck className="h-8 w-8" style={{ color: "var(--amber)" }} />
+        <h2 className="mt-3 text-xl font-bold">Link your family's home</h2>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Ask whoever manages the home in India to open Casai and share a 6-digit code
+          (Home → “Invite family abroad”). Enter it here to start monitoring.
+        </p>
+        <form onSubmit={submit} className="mt-5 space-y-3">
+          <input
+            inputMode="numeric" maxLength={6} autoFocus value={code}
+            onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
+            placeholder="6-digit code"
+            className="h-14 w-full rounded-xl border border-border bg-input text-center text-2xl font-semibold tracking-[0.4em] outline-none focus:border-[var(--amber)]"
+          />
+          {error && <div className="rounded-xl border p-3 text-xs" style={{ borderColor: "var(--coral)", color: "var(--coral)" }}>{error}</div>}
+          <button type="submit" disabled={redeem.isPending || code.length < 6}
+            className="flex h-12 w-full items-center justify-center gap-2 rounded-xl text-sm font-semibold disabled:opacity-50"
+            style={{ background: "var(--amber)", color: "var(--background)" }}>
+            {redeem.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
+            {redeem.isPending ? "Linking…" : "Link household"}
+          </button>
+        </form>
+        <p className="mt-3 text-[11px] text-muted-foreground">
+          Your timezone ({localTimezone()}) is saved so alerts show your local time alongside IST.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function LinkedDashboard({ link }: { link: { household_id: string; nri_timezone: string } }) {
+  const { data: household } = useLinkedHousehold(link.household_id);
+  const { data: bookings = [], isLoading } = useLinkedBookings();
+  const tz = link.nri_timezone;
+
+  const completed = bookings.filter((b) => b.status === "completed").length;
+  const noShows = bookings.filter((b) => b.status === "no_show").length;
+  const upcoming = bookings.filter((b) => b.status === "confirmed" || b.status === "in_progress");
+
+  return (
+    <div className="space-y-6">
+      {/* Book care for the family */}
+      <section className="rounded-2xl border p-5"
         style={{ borderColor: "color-mix(in oklab, var(--amber) 35%, var(--border))", background: "linear-gradient(135deg, color-mix(in oklab, var(--amber) 12%, var(--card)), var(--card))" }}>
-        <div className="flex flex-wrap items-start justify-between gap-4">
+        <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <div className="text-[10px] uppercase tracking-wider" style={{ color: "var(--amber)" }}>Recommended for your family</div>
-            <h2 className="mt-1 text-lg font-bold">Book care for Iyer Residence</h2>
-            <p className="text-xs text-muted-foreground">Choose a live-in caregiver or a trusted driver — verified pros in Bengaluru.</p>
+            <h2 className="mt-1 text-lg font-bold">Book care for {household?.name ?? "your family"}</h2>
+            <p className="text-xs text-muted-foreground">Verified caregivers and drivers in {household?.zone ?? "India"}.</p>
           </div>
           <div className="flex gap-2">
-            <Link to="/nri/book" search={{ cat: "caregiver" }}
-              className="inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold"
-              style={{ background: "var(--amber)", color: "var(--background)" }}>
+            <Link to="/nri/book" search={{ cat: "caregiver" }} className="inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold" style={{ background: "var(--amber)", color: "var(--background)" }}>
               <HeartHandshake className="h-4 w-4" /> Book caregiver
             </Link>
-            <Link to="/nri/book" search={{ cat: "driver" }}
-              className="inline-flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-semibold"
-              style={{ borderColor: "var(--amber)", color: "var(--amber)" }}>
+            <Link to="/nri/book" search={{ cat: "driver" }} className="inline-flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-semibold" style={{ borderColor: "var(--amber)", color: "var(--amber)" }}>
               <Car className="h-4 w-4" /> Book driver
             </Link>
           </div>
         </div>
-        <div className="mt-5 space-y-5">
-          <CategoryRow
-            title="Caregivers (24/7)"
-            cat="caregiver"
-            Icon={HeartHandshake}
-            workers={caregivers}
-            onOpen={(id) => nav({ to: "/nri/book", search: { cat: "caregiver" } })}
-            onNav={(id) => nav({ to: "/nri/book", search: { cat: "caregiver" } })}
-          />
-          <CategoryRow
-            title="Drivers"
-            cat="driver"
-            Icon={Car}
-            workers={drivers}
-            onOpen={(id) => nav({ to: "/nri/book", search: { cat: "driver" } })}
-            onNav={(id) => nav({ to: "/nri/book", search: { cat: "driver" } })}
-          />
-        </div>
       </section>
 
-      <div className="grid gap-6 lg:grid-cols-[1fr_1.4fr_1fr]">
+      <div className="grid gap-6 lg:grid-cols-[1fr_1.6fr]">
         <section className="space-y-4">
           <div className="rounded-2xl border-2 p-5" style={{ borderColor: "var(--amber)" }}>
             <div className="text-[10px] uppercase tracking-wider" style={{ color: "var(--amber)" }}>Linked household</div>
-            <div className="mt-1 text-base font-bold">Iyer Residence</div>
-            <div className="text-xs text-muted-foreground">A-402 Lotus Heights, Bengaluru</div>
-            <div className="mt-2 inline-block rounded-full px-2 py-0.5 text-[10px] font-semibold" style={{ background: "var(--amber)", color: "var(--background)" }}>Care+ active</div>
+            <div className="mt-1 text-base font-bold">{household?.name ?? "…"}</div>
+            <div className="text-xs text-muted-foreground">{household?.zone}</div>
+            <div className="mt-2 inline-block rounded-full px-2 py-0.5 text-[10px] font-semibold" style={{ background: "var(--amber)", color: "var(--background)" }}>Linked · alerts in {tzAbbrev(new Date().toISOString(), tz)}</div>
           </div>
-          <div className="rounded-2xl border border-border bg-card p-5">
-            <div className="flex items-center gap-3">
-              <div className="flex h-12 w-12 items-center justify-center rounded-full font-bold" style={{ background: "var(--amber)", color: "var(--background)" }}>M</div>
-              <div>
-                <div className="text-xs text-muted-foreground">Home Manager</div>
-                <div className="font-semibold">Meera Reddy</div>
-              </div>
-            </div>
-            <div className="mt-3 grid grid-cols-2 gap-2">
-              <button className="flex items-center justify-center gap-1 rounded-lg py-2 text-xs font-semibold" style={{ background: "var(--teal)", color: "var(--background)" }}><MessageCircle className="h-3 w-3" /> WhatsApp</button>
-              <button className="flex items-center justify-center gap-1 rounded-lg border border-border py-2 text-xs"><Phone className="h-3 w-3" /> Call</button>
-            </div>
-          </div>
-          <div className="rounded-2xl border border-border bg-card p-5">
-            <h3 className="mb-3 text-sm font-semibold">Recent alerts</h3>
-            <div className="space-y-2 text-xs">
-              {[["Booking complete", "Cook · 1h ago", "var(--teal)"], ["Reschedule", "Maid · 3h ago", "var(--amber)"], ["No-show", "Driver · yest.", "var(--coral)"], ["Booking complete", "Cook · yest.", "var(--teal)"], ["Wellness OK", "2d ago", "var(--teal)"]].map(([k, t, c], i) => (
-                <div key={i} className="flex items-center justify-between rounded-lg bg-muted p-2">
-                  <div>
-                    <div className="font-medium">{k}</div>
-                    <div className="text-muted-foreground">{t}</div>
-                  </div>
-                  <span className="h-2 w-2 rounded-full" style={{ background: c as string }} />
-                </div>
-              ))}
-            </div>
+          <div className="grid grid-cols-3 gap-3">
+            <Stat k="Upcoming" v={String(upcoming.length)} c="var(--amber)" />
+            <Stat k="Completed" v={String(completed)} c="var(--teal)" />
+            <Stat k="No-shows" v={String(noShows)} c="var(--coral)" />
           </div>
         </section>
 
-        <section className="space-y-4">
-          <h3 className="text-sm font-semibold">Today in Bengaluru · {new Date().toLocaleDateString("en-IN")}</h3>
+        <section className="space-y-3">
+          <h3 className="text-sm font-semibold">Schedule · {household?.zone ?? "India"}</h3>
+          {isLoading && <div className="h-24 animate-pulse rounded-2xl border border-border bg-card" />}
+          {!isLoading && bookings.length === 0 && (
+            <Notice>No bookings yet for this home. Book a caregiver above and it will appear here.</Notice>
+          )}
           <ol className="space-y-3 border-l-2 border-border pl-4">
-            {[
-              { t: "8:00 AM IST", l: "10:30 PM PST", s: "Cook · Sunita", st: "Completed", c: "var(--teal)" },
-              { t: "11:30 AM IST", l: "2:00 AM PST", s: "Maid · Asha", st: "In progress", c: "var(--amber)" },
-              { t: "4:00 PM IST", l: "6:30 AM PST", s: "Driver · Ram", st: "Scheduled", c: "var(--muted-foreground)" },
-              { t: "7:00 PM IST", l: "9:30 AM PST", s: "Cook · Sunita", st: "Scheduled", c: "var(--muted-foreground)" },
-            ].map((b, i) => (
-              <li key={i} className="relative rounded-xl border border-border bg-card p-4">
-                <span className="absolute -left-[22px] top-5 h-3 w-3 rounded-full" style={{ background: b.c }} />
-                <div className="flex items-start justify-between">
-                  <div>
-                    <div className="font-medium">{b.s}</div>
-                    <div className="text-xs text-muted-foreground">{b.t} · your time {b.l}</div>
+            {bookings.map((b) => {
+              const svc = getService(b.service_category);
+              const c = b.status === "completed" ? "var(--teal)" : b.status === "no_show" ? "var(--coral)" : b.status === "in_progress" ? "var(--amber)" : "var(--muted-foreground)";
+              return (
+                <li key={b.booking_id} className="relative rounded-xl border border-border bg-card p-4">
+                  <span className="absolute -left-[22px] top-5 h-3 w-3 rounded-full" style={{ background: c }} />
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <div className="font-medium">{svc.displayName}</div>
+                      {/* Dual timezone — IST and the NRI's own, from the link */}
+                      <div className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground">
+                        <Clock className="h-3 w-3" />
+                        {timeIn(b.slot_datetime, IST)} {tzAbbrev(b.slot_datetime, IST)}
+                        <span className="opacity-60">· your time</span>
+                        {timeIn(b.slot_datetime, tz)} {tzAbbrev(b.slot_datetime, tz)}
+                      </div>
+                    </div>
+                    <span className="rounded-full px-2 py-1 text-[10px] font-semibold capitalize" style={{ background: `color-mix(in oklab, ${c} 18%, transparent)`, color: c }}>
+                      {b.status.replace("_", " ")}
+                    </span>
                   </div>
-                  <span className="rounded-full px-2 py-1 text-[10px] font-semibold" style={{ background: `color-mix(in oklab, ${b.c} 18%, transparent)`, color: b.c }}>
-                    {b.st}
-                  </span>
-                </div>
-              </li>
-            ))}
+                </li>
+              );
+            })}
           </ol>
         </section>
-
-        <section className="space-y-4">
-          <h3 className="text-sm font-semibold">7-day summary</h3>
-          <div className="grid grid-cols-2 gap-3">
-            {[["Completed", "18", "var(--teal)"], ["No-shows", "1", "var(--coral)"], ["Replaced", "2", "var(--amber)"], ["Avg rating", "4.8★", "var(--gold)"]].map(([k, v, c]) => (
-              <div key={k} className="rounded-2xl border border-border bg-card p-3">
-                <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{k}</div>
-                <div className="mt-1 text-xl font-bold" style={{ color: c as string }}>{v}</div>
-              </div>
-            ))}
-          </div>
-          {!isMobile && (
-            <div className="rounded-2xl border border-border bg-card p-4">
-              <h4 className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">This month</h4>
-              <div className="grid grid-cols-7 gap-1.5">
-                {Array.from({ length: 28 }).map((_, i) => {
-                  const r = (i * 7) % 11;
-                  const c = r === 0 ? "var(--amber)" : r < 7 ? "var(--teal)" : "var(--muted)";
-                  return <div key={i} className="aspect-square rounded-md" style={{ background: c }} />;
-                })}
-              </div>
-              <div className="mt-3 flex gap-3 text-[10px] text-muted-foreground">
-                <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full" style={{ background: "var(--teal)" }} /> Done</span>
-                <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full" style={{ background: "var(--amber)" }} /> No-show</span>
-                <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full" style={{ background: "var(--muted)" }} /> Idle</span>
-              </div>
-            </div>
-          )}
-        </section>
-      </div>
-    </AppShell>
-  );
-}
-
-function CategoryRow({
-  title, cat, Icon, workers, onOpen,
-}: {
-  title: string;
-  cat: "caregiver" | "driver";
-  Icon: typeof HeartHandshake;
-  workers: typeof WORKERS;
-  onOpen: (id: string) => void;
-  onNav: (id: string) => void;
-}) {
-  return (
-    <div>
-      <div className="mb-2 flex items-center justify-between">
-        <div className="flex items-center gap-2 text-sm font-semibold">
-          <Icon className="h-4 w-4" style={{ color: "var(--amber)" }} /> {title}
-        </div>
-        <Link to="/nri/book" search={{ cat }}
-          className="inline-flex items-center gap-1 text-xs font-semibold" style={{ color: "var(--amber)" }}>
-          Book now <ArrowRight className="h-3 w-3" />
-        </Link>
-      </div>
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        {workers.slice(0, 4).map((w) => (
-          <button key={w.id}
-            onClick={() => onOpen(w.id)}
-            className="flex items-center gap-3 rounded-xl border border-border bg-card p-3 text-left transition hover:border-[var(--amber)]">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full font-semibold"
-              style={{ background: "var(--amber)", color: "var(--background)" }}>{w.name[0]}</div>
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-1 text-sm font-semibold">
-                {w.name} <Shield className="h-3 w-3" style={{ color: "var(--amber)" }} />
-              </div>
-              <div className="mt-0.5 text-[11px] text-muted-foreground">{w.zone}</div>
-              <div className="mt-0.5 flex items-center gap-2 text-[11px]">
-                <span className="flex items-center gap-0.5"><Star className="h-3 w-3 fill-current" style={{ color: "var(--gold)" }} />{w.rating}</span>
-                <span className="text-muted-foreground">₹{w.price}/{cat === "caregiver" ? "day" : "hr"}</span>
-              </div>
-            </div>
-            <ArrowRight className="h-4 w-4 text-muted-foreground" />
-          </button>
-        ))}
       </div>
     </div>
   );
+}
+
+function Stat({ k, v, c }: { k: string; v: string; c: string }) {
+  return (
+    <div className="rounded-2xl border border-border bg-card p-3">
+      <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{k}</div>
+      <div className="mt-1 text-xl font-bold" style={{ color: c }}>{v}</div>
+    </div>
+  );
+}
+
+function Notice({ children }: { children: React.ReactNode }) {
+  return <div className="rounded-2xl border border-border bg-card p-4 text-sm text-muted-foreground">{children}</div>;
 }
