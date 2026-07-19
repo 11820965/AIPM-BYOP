@@ -99,6 +99,28 @@ export async function asUser(db, profileId, fn) {
   }
 }
 
+/**
+ * Like asUser, but COMMITS the work instead of rolling it back — for
+ * multi-step flows (generate a code, then redeem it in a later call) where
+ * the intermediate state must persist. `set local role` is reverted at
+ * transaction end regardless, so the connection returns to its default.
+ */
+export async function asUserCommit(db, profileId, fn) {
+  await db.exec("begin");
+  try {
+    await db.query(`select set_config('request.jwt.claims', $1, true)`, [
+      JSON.stringify({ sub: profileId, role: "authenticated" }),
+    ]);
+    await db.exec("set local role authenticated");
+    const result = await fn();
+    await db.exec("commit");
+    return result;
+  } catch (err) {
+    await db.exec("rollback");
+    throw err;
+  }
+}
+
 /** Seed one profile of each context, plus a household and an NRI link. */
 export async function seedActors(db) {
   const ids = {};
