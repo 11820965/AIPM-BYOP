@@ -20,10 +20,18 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
-          cache: npm
 
+      # Match the npm that generated package-lock.json (npm 11). node 22 ships
+      # npm 10, and its stricter `npm ci` can reject a lockfile written by a
+      # newer npm even when the two files are in sync (verified: `npm ci`
+      # passes locally on npm 11). Pinning removes that version boundary.
+      - name: Pin npm to lockfile generator
+        run: npm install -g npm@11
+
+      # On failure, surface npm's own debug log inline — CI must never fail
+      # with just "exit code 1" and no cause.
       - name: Install dependencies
-        run: npm ci
+        run: npm ci || { echo "::group::npm debug log"; cat "$HOME/.npm/_logs/"*-debug-*.log 2>/dev/null | tail -60; echo "::endgroup::"; exit 1; }
 
       - name: Typecheck
         run: npx tsc --noEmit
