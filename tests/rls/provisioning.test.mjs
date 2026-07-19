@@ -20,6 +20,10 @@ const db = await freshDb();
 await db.exec(
   await readFile(join(ROOT, "supabase/migrations/0003_new_user_provisioning.sql"), "utf8"),
 );
+// 0006 hardens provisioning for anonymous (null-email) users.
+await db.exec(
+  await readFile(join(ROOT, "supabase/migrations/0006_provisioning_robust.sql"), "utf8"),
+);
 
 /** Sign a user up the way GoTrue does: insert into auth.users. */
 async function signUp(email, meta = {}) {
@@ -103,6 +107,20 @@ test("display name falls back to the email local-part, never blank", async () =>
   const id = await signUp("ramesh.kumar@example.co.uk", { display_name: "   " });
   const { rows } = await db.query(`select display_name from profile where id = $1`, [id]);
   assert.equal(rows[0].display_name, "Ramesh.Kumar");
+});
+
+test("an anonymous user (null email) is provisioned as a household", async () => {
+  // Supabase anonymous sign-in inserts an auth.users row with no email.
+  const { rows: u } = await db.query(
+    `insert into auth.users (email, raw_user_meta_data) values (null, '{}') returning id`,
+  );
+  const anonId = u[0].id;
+  const { rows: prof } = await db.query(`select role, display_name from profile where id = $1`, [anonId]);
+  assert.equal(prof.length, 1, "anonymous user got no profile — the app can't treat it as a household");
+  assert.equal(prof[0].role, "household");
+  assert.equal(prof[0].display_name, "Guest");
+  const { rows: hh } = await db.query(`select household_id from household where profile_id = $1`, [anonId]);
+  assert.equal(hh.length, 1, "anonymous user got no household row");
 });
 
 test("backfill and trigger are idempotent", async () => {
