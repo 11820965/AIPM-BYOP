@@ -95,6 +95,27 @@ export type BookingRow = {
 // Shaped to satisfy supabase-js's GenericSchema so insert/update payloads
 // type-check (each table needs Row/Insert/Update/Relationships; the schema
 // needs Views/Functions/Enums/CompositeTypes).
+// The worker's OWN full record (worker_self_read). Households never reach
+// this — they read worker_public, which omits the financial columns.
+export type WorkerRow = {
+  worker_id: string;
+  profile_id: string | null;
+  full_name: string;
+  service_category: ServiceCategory;
+  zone: string;
+  ekyc_status: VerificationStatus;
+  police_check_status: VerificationStatus;
+  jobs_completed: number;
+  rating: number | null;
+  reliability_score: number | null;
+  trust_score: number | null;
+  experience_years: number | null;
+  credit_score: number | null;
+  earnings_month_minor: number;
+  is_live: boolean;
+  created_at: string;
+};
+
 export type NriLinkRow = {
   link_id: string;
   nri_profile: string;
@@ -111,6 +132,7 @@ export type Database = {
       profile: { Row: ProfileRow; Insert: Partial<ProfileRow>; Update: Partial<ProfileRow>; Relationships: [] };
       household: { Row: HouseholdRow; Insert: Partial<HouseholdRow>; Update: Partial<HouseholdRow>; Relationships: [] };
       booking: { Row: BookingRow; Insert: Partial<BookingRow>; Update: Partial<BookingRow>; Relationships: [] };
+      worker: { Row: WorkerRow; Insert: Partial<WorkerRow>; Update: Partial<WorkerRow>; Relationships: [] };
       nri_link: { Row: NriLinkRow; Insert: Partial<NriLinkRow>; Update: Partial<NriLinkRow>; Relationships: [] };
       // read-only to app roles (see 0002 grants) — insert/update kept as Row
       // shape so the generic resolves, but the DB refuses writes.
@@ -123,6 +145,7 @@ export type Database = {
     Functions: {
       generate_nri_invite: { Args: Record<string, never>; Returns: string };
       redeem_nri_invite: { Args: { p_code: string; p_timezone: string }; Returns: { household_id: string; linked: boolean } };
+      become_worker: { Args: { p_name: string; p_category: ServiceCategory; p_zone: string }; Returns: string };
     };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;
