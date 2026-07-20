@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as WorkerIndexRouteImport } from './routes/worker.index'
+import { Route as OpsIndexRouteImport } from './routes/ops.index'
 import { Route as NriIndexRouteImport } from './routes/nri.index'
 import { Route as AppIndexRouteImport } from './routes/app.index'
 import { Route as WorkerProfileRouteImport } from './routes/worker.profile'
@@ -43,6 +44,11 @@ const IndexRoute = IndexRouteImport.update({
 const WorkerIndexRoute = WorkerIndexRouteImport.update({
   id: '/worker/',
   path: '/worker/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OpsIndexRoute = OpsIndexRouteImport.update({
+  id: '/ops/',
+  path: '/ops/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const NriIndexRoute = NriIndexRouteImport.update({
@@ -148,6 +154,7 @@ export interface FileRoutesByFullPath {
   '/worker/profile': typeof WorkerProfileRoute
   '/app/': typeof AppIndexRoute
   '/nri/': typeof NriIndexRoute
+  '/ops/': typeof OpsIndexRoute
   '/worker/': typeof WorkerIndexRoute
   '/app/booking/$id': typeof AppBookingIdRoute
   '/app/review/$id': typeof AppReviewIdRoute
@@ -170,6 +177,7 @@ export interface FileRoutesByTo {
   '/worker/profile': typeof WorkerProfileRoute
   '/app': typeof AppIndexRoute
   '/nri': typeof NriIndexRoute
+  '/ops': typeof OpsIndexRoute
   '/worker': typeof WorkerIndexRoute
   '/app/booking/$id': typeof AppBookingIdRoute
   '/app/review/$id': typeof AppReviewIdRoute
@@ -193,6 +201,7 @@ export interface FileRoutesById {
   '/worker/profile': typeof WorkerProfileRoute
   '/app/': typeof AppIndexRoute
   '/nri/': typeof NriIndexRoute
+  '/ops/': typeof OpsIndexRoute
   '/worker/': typeof WorkerIndexRoute
   '/app/booking/$id': typeof AppBookingIdRoute
   '/app/review/$id': typeof AppReviewIdRoute
@@ -217,6 +226,7 @@ export interface FileRouteTypes {
     | '/worker/profile'
     | '/app/'
     | '/nri/'
+    | '/ops/'
     | '/worker/'
     | '/app/booking/$id'
     | '/app/review/$id'
@@ -239,6 +249,7 @@ export interface FileRouteTypes {
     | '/worker/profile'
     | '/app'
     | '/nri'
+    | '/ops'
     | '/worker'
     | '/app/booking/$id'
     | '/app/review/$id'
@@ -261,6 +272,7 @@ export interface FileRouteTypes {
     | '/worker/profile'
     | '/app/'
     | '/nri/'
+    | '/ops/'
     | '/worker/'
     | '/app/booking/$id'
     | '/app/review/$id'
@@ -284,6 +296,7 @@ export interface RootRouteChildren {
   WorkerProfileRoute: typeof WorkerProfileRoute
   AppIndexRoute: typeof AppIndexRoute
   NriIndexRoute: typeof NriIndexRoute
+  OpsIndexRoute: typeof OpsIndexRoute
   WorkerIndexRoute: typeof WorkerIndexRoute
   AppBookingIdRoute: typeof AppBookingIdRoute
   AppReviewIdRoute: typeof AppReviewIdRoute
@@ -311,6 +324,13 @@ declare module '@tanstack/react-router' {
       path: '/worker'
       fullPath: '/worker/'
       preLoaderRoute: typeof WorkerIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/ops/': {
+      id: '/ops/'
+      path: '/ops'
+      fullPath: '/ops/'
+      preLoaderRoute: typeof OpsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/nri/': {
@@ -452,6 +472,7 @@ const rootRouteChildren: RootRouteChildren = {
   WorkerProfileRoute: WorkerProfileRoute,
   AppIndexRoute: AppIndexRoute,
   NriIndexRoute: NriIndexRoute,
+  OpsIndexRoute: OpsIndexRoute,
   WorkerIndexRoute: WorkerIndexRoute,
   AppBookingIdRoute: AppBookingIdRoute,
   AppReviewIdRoute: AppReviewIdRoute,

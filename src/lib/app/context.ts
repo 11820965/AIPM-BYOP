@@ -1,5 +1,5 @@
 import { useRouterState } from "@tanstack/react-router";
-import { Home, CalendarCheck, IdCard, Sparkles, Wallet, Briefcase, History } from "lucide-react";
+import { Home, CalendarCheck, IdCard, Sparkles, Wallet, Briefcase, History, ShieldCheck } from "lucide-react";
 
 /**
  * Bounded contexts (SAD §05).
@@ -82,10 +82,9 @@ export const NAV_BY_CONTEXT: Record<Context, NavItem[]> = {
     { to: "/nri/book", label: "Book", icon: CalendarCheck },
     { to: "/nri/history", label: "History", icon: History },
   ],
-  // Ops has no shipped surface yet — the dashboard is P5. The context
-  // exists here so ops-only data has a named home that is provably not
-  // the household's (see churn_score in 0002_rls_policies.sql).
-  ops: [],
+  ops: [
+    { to: "/ops", label: "Verification", icon: ShieldCheck },
+  ],
 };
 
 const ACCENT: Record<Context, string> = {

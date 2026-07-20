@@ -143,6 +143,9 @@ function Login() {
           <p className="text-center text-[11px] text-muted-foreground">
             Explore as a household — no email needed.
           </p>
+          <p className="text-center text-[11px] text-muted-foreground">
+            <a href="/ops" className="hover:text-foreground">Casai Ops →</a>
+          </p>
         </form>
       ) : (
         <form onSubmit={submitCode} className="space-y-4">
