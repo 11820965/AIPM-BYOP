@@ -14,9 +14,13 @@
 --     unused code. A client cannot set its own role to 'nri'.
 --   * A code is single-use, time-boxed (10 min), and cannot link a
 --     household to itself.
+--
+-- Written to be idempotent (create if not exists / drop-then-create /
+-- create or replace) so it is safe to re-run if a prior run stopped part
+-- way through.
 -- =====================================================================
 
-create table nri_invite (
+create table if not exists nri_invite (
   code          text primary key,
   household_id  uuid not null references household (household_id) on delete cascade,
   created_by    uuid not null references profile (id) on delete cascade,
@@ -26,7 +30,7 @@ create table nri_invite (
   created_at    timestamptz not null default now()
 );
 
-create index nri_invite_household_idx on nri_invite (household_id);
+create index if not exists nri_invite_household_idx on nri_invite (household_id);
 
 alter table nri_invite enable row level security;
 
@@ -35,9 +39,15 @@ grant select, insert on nri_invite to authenticated;
 -- The household sees and creates only its OWN invites. The NRI never reads
 -- this table directly — redemption goes through the definer function below,
 -- so a stranger cannot enumerate or probe codes.
+drop policy if exists nri_invite_household_read on nri_invite;
 create policy nri_invite_household_read on nri_invite
   for select using (household_id = app_household_id());
 
+drop policy if exists nri_invite_household_create on nri_invite;
+create policy nri_invite_household_create on nri_invite
+  for insert with check (household_id = app_household_id());
+
+drop policy if exists nri_invite_ops_read on nri_invite;
 create policy nri_invite_ops_read on nri_invite
   for select using (app_role() = 'ops');
 
@@ -59,7 +69,6 @@ begin
     raise exception 'only a household can invite a family member';
   end if;
 
-  -- 6-digit, retried on the vanishingly rare collision
   loop
     code := lpad((floor(random() * 1000000))::int::text, 6, '0');
     begin
@@ -67,7 +76,7 @@ begin
       values (code, hh, auth.uid(), now() + interval '10 minutes');
       exit;
     exception when unique_violation then
-      -- try another code
+      -- collision — try another code
     end;
   end loop;
 
@@ -103,7 +112,6 @@ begin
     raise exception 'you cannot link your own household';
   end if;
 
-  -- Role change — server-side, only after the code is proven valid.
   update profile set role = 'nri' where id = auth.uid();
 
   insert into nri_link (nri_profile, household_id, consent_code, linked_at, expires_at, nri_timezone)
