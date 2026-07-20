@@ -49,6 +49,13 @@ export type NewBooking = {
   serviceAddress: string;
   notes: string;
   paymentMethod: PaymentMethod;
+  /**
+   * Book for this household instead of the caller's own. Used by the NRI
+   * flow to book on behalf of a linked household (RLS booking_nri_create
+   * still checks the household is one they are linked to). Omit for a
+   * household booking for itself.
+   */
+  householdId?: string;
 };
 
 export function useCreateBooking() {
@@ -57,20 +64,25 @@ export function useCreateBooking() {
     mutationFn: async (input: NewBooking): Promise<BookingRow> => {
       if (!supabase) throw new Error("Supabase is not configured.");
 
-      // household_id is resolved server-side by RLS scope, but the row needs
-      // it explicitly. Read the caller's own household (RLS guarantees it is
-      // theirs) rather than trusting any client-held id.
-      const { data: hh, error: hhErr } = await supabase
-        .from("household")
-        .select("household_id")
-        .maybeSingle();
-      if (hhErr) throw hhErr;
-      if (!hh) throw new Error("No household for this account. Complete signup first.");
+      // For a household booking for itself, resolve the caller's own
+      // household (RLS guarantees it is theirs). For an NRI booking on
+      // behalf, the caller passes the linked household id, which RLS
+      // (booking_nri_create) independently checks they are linked to.
+      let householdId = input.householdId;
+      if (!householdId) {
+        const { data: hh, error: hhErr } = await supabase
+          .from("household")
+          .select("household_id")
+          .maybeSingle();
+        if (hhErr) throw hhErr;
+        if (!hh) throw new Error("No household for this account. Complete signup first.");
+        householdId = hh.household_id;
+      }
 
       const { data, error } = await supabase
         .from("booking")
         .insert({
-          household_id: hh.household_id,
+          household_id: householdId,
           worker_id: input.workerId,
           service_category: input.category,
           slot_datetime: input.slotDatetime,

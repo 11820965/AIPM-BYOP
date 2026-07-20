@@ -19,6 +19,7 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const db = await freshDb();
 await db.exec(await readFile(join(ROOT, "supabase/migrations/0006_provisioning_robust.sql"), "utf8"));
 await db.exec(await readFile(join(ROOT, "supabase/migrations/0007_nri_linking.sql"), "utf8"));
+await db.exec(await readFile(join(ROOT, "supabase/migrations/0008_nri_booking.sql"), "utf8"));
 
 /** Sign a user up (fires provisioning → household + profile). */
 async function signUp(email) {
@@ -121,6 +122,43 @@ test("a non-household (no household_id) cannot generate an invite", async () => 
   // is null; exercised via the linked NRI having a distinct own household.)
   const code = await generateCode(parent.uid);
   assert.match(code, /^\d{6}$/);
+});
+
+test("a linked NRI can book on behalf of the linked household, but not others", async () => {
+  const outsider = await signUp("outsider-home@example.com");
+  await asUserCommit(db, nri.uid, async () => {
+    // On behalf of the linked (parent) household — allowed by booking_nri_create.
+    const { rows } = await db.query(
+      `insert into booking (household_id, worker_id, service_category, slot_datetime, duration_hours, total_amount_minor, service_address, payment_method)
+       values ($1,'GS-WK-2907','caregiver', now() + interval '1 day', 7, 266000, 'Parent home', 'card')
+       returning booking_id`,
+      [parent.householdId],
+    );
+    assert.equal(rows.length, 1, "linked NRI could not book for the household it monitors");
+  });
+  // But NOT for a household it is not linked to.
+  await asUser(db, nri.uid, async () => {
+    await assert.rejects(
+      db.query(
+        `insert into booking (household_id, worker_id, service_category, slot_datetime, duration_hours, total_amount_minor, service_address, payment_method)
+         values ($1,'GS-WK-2907','caregiver', now() + interval '1 day', 7, 266000, 'Other home', 'card')`,
+        [outsider.householdId],
+      ),
+      "NRI booked for a household it is not linked to",
+    );
+  });
+});
+
+test("a caregiver engagement may span more than 8 days (relaxed duration)", async () => {
+  await asUserCommit(db, nri.uid, async () => {
+    const { rows } = await db.query(
+      `insert into booking (household_id, worker_id, service_category, slot_datetime, duration_hours, total_amount_minor, service_address, payment_method)
+       values ($1,'GS-WK-2907','caregiver', now() + interval '1 day', 14, 532000, 'Parent home', 'card')
+       returning duration_hours`,
+      [parent.householdId],
+    );
+    assert.equal(Number(rows[0].duration_hours), 14, "14-day caregiver booking was rejected");
+  });
 });
 
 test("the linked NRI sees the invited household's bookings, and only those", async () => {
