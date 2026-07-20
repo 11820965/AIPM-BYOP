@@ -111,6 +111,17 @@ export async function signOutSession(): Promise<void> {
   await supabase.auth.signOut();
 }
 
+/**
+ * Guest sign-in (anonymous). The working way into the app while email OTP
+ * is blocked by the free-tier template lock. The signup trigger provisions
+ * the guest as a household; role stays server-assigned.
+ */
+export async function signInAsGuest(): Promise<void> {
+  if (!supabase) throw new Error("Supabase is not configured.");
+  const { error } = await supabase.auth.signInAnonymously();
+  if (error) throw error;
+}
+
 /** Landing route for a context, used after sign-in. */
 export function homeForRole(role: Context): string {
   switch (role) {

@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { Mail, ArrowLeft, Loader2 } from "lucide-react";
-import { sendEmailOtp, verifyEmailOtp, useSession, homeForRole } from "@/lib/auth/session";
+import { sendEmailOtp, verifyEmailOtp, signInAsGuest, useSession, homeForRole } from "@/lib/auth/session";
 import { isSupabaseConfigured } from "@/lib/supabase/client";
 
 export const Route = createFileRoute("/login")({ component: Login });
@@ -51,6 +51,19 @@ function Login() {
     try {
       await sendEmailOtp(email.trim());
       setStep("code");
+    } catch (err) {
+      setError(messageFor(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function continueAsGuest() {
+    setBusy(true);
+    setError(null);
+    try {
+      await signInAsGuest();
+      nav({ to: "/app" });
     } catch (err) {
       setError(messageFor(err));
     } finally {
@@ -115,6 +128,21 @@ function Login() {
             {busy && <Loader2 className="h-4 w-4 animate-spin" />}
             {busy ? "Sending…" : "Send code"}
           </button>
+
+          <div className="flex items-center gap-3 py-1 text-[11px] uppercase tracking-wider text-muted-foreground">
+            <span className="h-px flex-1 bg-border" /> or <span className="h-px flex-1 bg-border" />
+          </div>
+          <button
+            type="button"
+            onClick={continueAsGuest}
+            disabled={busy}
+            className="h-12 w-full rounded-xl border border-border text-sm font-semibold disabled:opacity-50"
+          >
+            Continue as guest
+          </button>
+          <p className="text-center text-[11px] text-muted-foreground">
+            Explore as a household — no email needed.
+          </p>
         </form>
       ) : (
         <form onSubmit={submitCode} className="space-y-4">
