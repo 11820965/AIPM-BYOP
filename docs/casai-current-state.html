@@ -1,0 +1,169 @@
+<title>Casai — Current State</title>
+<style>
+  :root{
+    --forest:#0E3D33; --teal:#0F6E56; --teal-2:#127a5f; --gold:#C9A24A; --gold-soft:#E7CE92;
+    --ink:#12201C; --body:#2b3a34; --muted:#5f6f68; --faint:#84918b; --hair:#dde5e1;
+    --ground:#f5f8f6; --card:#fff; --figure:#fbfaf5; --code:#eef3f1;
+    --good:#1e8a5a; --good-bg:#e4f3ea; --build:#b9791a; --build-bg:#f8eed9;
+    --gap:#b4442e; --gap-bg:#f7e6e1; --purple:#6b5ca8; --amber:#c08a2e;
+    --shadow:0 1px 2px rgba(14,61,51,.06),0 6px 24px rgba(14,61,51,.06);
+    --mono:ui-monospace,"Cascadia Code","SF Mono",Consolas,monospace;
+    --sans:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  }
+  @media (prefers-color-scheme:dark){
+    :root{
+      --forest:#7fd8bd; --teal:#5fc8a8; --teal-2:#7fd8bd; --gold:#e7c574; --gold-soft:#6b5a2c;
+      --ink:#eaf1ed; --body:#c3d0ca; --muted:#8ea59c; --faint:#6d827a; --hair:#22332c;
+      --ground:#0b1310; --card:#111e19; --figure:#f7f5ee; --code:#132019;
+      --good:#4cc98a; --good-bg:#123526; --build:#e0a94a; --build-bg:#3a2e12;
+      --gap:#e0765c; --gap-bg:#3a1f18; --purple:#a89ce0; --amber:#e0b45c;
+      --shadow:0 1px 2px rgba(0,0,0,.3),0 8px 30px rgba(0,0,0,.35);
+    }
+  }
+  :root[data-theme="light"]{ --ink:#12201C; --body:#2b3a34; --ground:#f5f8f6; --card:#fff; --hair:#dde5e1; --muted:#5f6f68; --teal:#0F6E56; --gold:#C9A24A; }
+  :root[data-theme="dark"]{ --ink:#eaf1ed; --body:#c3d0ca; --ground:#0b1310; --card:#111e19; --hair:#22332c; --muted:#8ea59c; --teal:#5fc8a8; --gold:#e7c574; }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--ground);color:var(--body);font-family:var(--sans);font-size:16.5px;line-height:1.62;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:860px;margin:0 auto;padding:0 24px 90px}
+  a{color:var(--teal)} a:hover{text-decoration:underline}
+  header.mast{border-bottom:1px solid var(--hair);padding:52px 0 30px;margin-bottom:8px}
+  .eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:var(--teal);display:flex;align-items:center;gap:10px}
+  .eyebrow .dot{width:6px;height:6px;border-radius:50%;background:var(--gold)}
+  h1.title{font-size:clamp(30px,5vw,48px);line-height:1.05;letter-spacing:-.02em;color:var(--ink);font-weight:800;margin:16px 0 12px;text-wrap:balance}
+  .lede{font-size:19px;color:var(--muted);max-width:60ch;margin:0}
+  .metabar{display:flex;flex-wrap:wrap;gap:8px 10px;margin-top:24px;font-family:var(--mono);font-size:12px}
+  .metabar span{background:var(--card);border:1px solid var(--hair);border-radius:6px;padding:5px 10px;color:var(--muted)}
+  .metabar b{color:var(--ink)}
+  h2{font-size:clamp(20px,2.6vw,26px);letter-spacing:-.015em;color:var(--ink);font-weight:750;margin:48px 0 14px;display:flex;align-items:baseline;gap:12px}
+  h2 .n{font-family:var(--mono);font-size:13px;color:var(--gold);font-weight:700;border:1px solid var(--gold-soft);border-radius:6px;padding:2px 8px}
+  h3{font-size:16px;color:var(--ink);font-weight:680;margin:24px 0 8px}
+  p{margin:0 0 14px;max-width:68ch} strong{color:var(--ink);font-weight:650}
+  code{font-family:var(--mono);font-size:.86em;background:var(--code);color:var(--forest);padding:1px 6px;border-radius:5px;border:1px solid var(--hair)}
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin:22px 0}
+  .stat{background:var(--card);border:1px solid var(--hair);border-radius:10px;padding:16px;box-shadow:var(--shadow)}
+  .stat .v{font-size:28px;font-weight:800;color:var(--ink);letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+  .stat .k{font-family:var(--mono);font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-top:4px}
+  .tbl{overflow-x:auto;margin:18px 0;border:1px solid var(--hair);border-radius:10px;box-shadow:var(--shadow);background:var(--card)}
+  table{border-collapse:collapse;width:100%;font-size:14px;min-width:480px}
+  th{font-family:var(--mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;text-align:left;color:var(--muted);background:var(--code);padding:10px 14px;border-bottom:1px solid var(--hair)}
+  td{padding:11px 14px;border-bottom:1px solid var(--hair);vertical-align:top} tr:last-child td{border-bottom:none}
+  td b{color:var(--ink)}
+  .pill{font-family:var(--mono);font-size:11px;font-weight:600;padding:2px 8px;border-radius:999px;white-space:nowrap;display:inline-block}
+  .p-live{color:var(--good);background:var(--good-bg)} .p-part{color:var(--build);background:var(--build-bg)} .p-no{color:var(--gap);background:var(--gap-bg)}
+  .note{border:1px solid var(--hair);border-left:3px solid var(--gold);background:var(--card);border-radius:8px;padding:16px 18px;margin:20px 0;box-shadow:var(--shadow)}
+  .note.key{border-left-color:var(--teal)}
+  .note .h{font-family:var(--mono);font-size:11px;letter-spacing:.13em;text-transform:uppercase;color:var(--muted);margin:0 0 6px}
+  .note p{margin:0;font-size:15px}
+  .grid{display:grid;gap:14px;margin:18px 0}
+  .g2{grid-template-columns:1fr 1fr} .g3{grid-template-columns:1fr 1fr 1fr}
+  .card{background:var(--card);border:1px solid var(--hair);border-radius:10px;padding:16px 18px;box-shadow:var(--shadow)}
+  .card .t{font-weight:680;color:var(--ink);margin:0 0 6px;font-size:15px}
+  .card p{font-size:13.5px;color:var(--muted);margin:0} .card ul{font-size:13.5px;color:var(--muted);margin:6px 0 0;padding-left:18px}
+  ul.body{max-width:68ch} li{margin:6px 0}
+  .ctx{border-top:3px solid var(--teal)} .ctx.w{border-top-color:var(--purple)} .ctx.n{border-top-color:var(--amber)}
+  footer{border-top:1px solid var(--hair);margin-top:44px;padding:24px 0;font-family:var(--mono);font-size:12px;color:var(--faint)}
+  @media (max-width:640px){ .stats,.g2,.g3{grid-template-columns:1fr 1fr} }
+</style>
+
+<div class="wrap">
+  <header class="mast">
+    <div class="eyebrow"><span class="dot"></span> Casai · Current State · BYOP submission</div>
+    <h1 class="title">From a prototype that faked it, to a system that's real</h1>
+    <p class="lede">Casai is an AI home-services platform for India — verified cooks, maids, drivers and caregivers, for urban households and NRI families managing a parent's home from abroad.</p>
+    <div class="metabar">
+      <span><b>Repo</b> github.com/11820965/AIPM-BYOP</span>
+      <span><b>Backend</b> Supabase (Mumbai)</span>
+      <span><b>CI</b> green</span>
+      <span><b>Date</b> Jul 2026</span>
+    </div>
+  </header>
+
+  <section>
+    <h2><span class="n">01</span> The starting point</h2>
+    <p>The brief began with a live Lovable prototype at <code>casai-intelligent.lovable.app</code>. Inspecting it revealed the truth: a <strong>front-end-only prototype</strong> — React on the surface, but no database, no API, no auth. Every worker, booking and score was hard-coded, the "session" was a <code>localStorage</code> string, and all five "AI engines", eKYC, and payments were faked in the browser.</p>
+    <p>It <em>looked</em> finished precisely because it was fabricating everything. The work here was to make it real — keep the validated experience, and build the platform underneath it.</p>
+  </section>
+
+  <section>
+    <h2><span class="n">02</span> What exists now</h2>
+    <div class="stats">
+      <div class="stat"><div class="v">3</div><div class="k">Live contexts</div></div>
+      <div class="stat"><div class="v">9</div><div class="k">DB migrations</div></div>
+      <div class="stat"><div class="v">49</div><div class="k">Passing tests</div></div>
+      <div class="stat"><div class="v">100%</div><div class="k">On real backend</div></div>
+    </div>
+    <p>All three user contexts run on a real Supabase (Postgres) backend, each <strong>verified by driving it live against the database</strong> — not asserted, watched.</p>
+    <div class="grid g3">
+      <div class="card ctx"><p class="t">Household</p><p>Guest login → browse verified workers from Postgres → book → confirmation reads back from the database. Real row, correct IST/UTC handling.</p></div>
+      <div class="card ctx n"><p class="t">NRI care</p><p>Consent-code linking → secure role elevation → dashboard shows the parents' home's real bookings in <strong>dual timezone</strong> → book a caregiver on behalf.</p></div>
+      <div class="card ctx w"><p class="t">Worker</p><p>Onboard → real worker ID + passport minted → dashboard, bookings, earnings and profile all read the worker's own record from Postgres.</p></div>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="n">03</span> Architecture at a glance</h2>
+    <div class="grid g2">
+      <div class="card"><p class="t">Stack</p><ul>
+        <li>TanStack Start (React 19, SSR + server fns)</li>
+        <li>Supabase — Postgres + Auth, Mumbai region</li>
+        <li>Tailwind + shadcn/ui · Cloudflare Workers</li>
+        <li>TypeScript end to end</li>
+      </ul></div>
+      <div class="card"><p class="t">Security model — enforced in the database</p><ul>
+        <li>Row Level Security per bounded context</li>
+        <li>Roles assigned server-side, never client-writable</li>
+        <li>Worker financials hidden from households by construction</li>
+        <li>Ops/churn data unreachable from consumers</li>
+      </ul></div>
+    </div>
+    <div class="note key">
+      <p class="h">The core idea</p>
+      <p>The prototype kept contexts apart in the UI (a <code>localStorage</code> role). Casai now keeps them apart <strong>in Postgres</strong> — a tampered client changes nothing, because every read is filtered by RLS using a server-verified role. The UI is never what protects the data.</p>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="n">04</span> Evidence, not assertion</h2>
+    <p>Every claim was checked against the live database. The same guarantees are pinned by an automated suite that runs in CI on real Postgres (compiled to WASM), where each test maps to a specific defect the prototype had:</p>
+    <ul class="body">
+      <li>An anonymous visitor sees <strong>nothing</strong>; each context sees only its own data</li>
+      <li>A household <strong>cannot</strong> reach a worker's credit score or the churn score kept about them</li>
+      <li>Role elevation to <code>nri</code> or <code>worker</code> is <strong>impossible</strong> without the proper server-side path</li>
+      <li>A self-onboarded worker is <strong>not bookable</strong> until ops verifies them</li>
+      <li>One pricing source — the ₹199-vs-₹220 split that attacked trust at checkout is gone</li>
+    </ul>
+    <p>A genuine bug the tests caught mid-build: a booking trigger, subject to the caller's own permissions, would have rejected <em>every</em> household booking. Fixed and re-verified. That's the value of testing against a real database rather than a mock.</p>
+  </section>
+
+  <section>
+    <h2><span class="n">05</span> Deliberately deferred</h2>
+    <p>An honest map of what is <em>not</em> built — each a conscious call, not an oversight.</p>
+    <div class="tbl">
+      <table>
+        <thead><tr><th>Area</th><th>Status</th><th>Why</th></tr></thead>
+        <tbody>
+          <tr><td>Real email login</td><td><span class="pill p-part">Guest works</span></td><td>Supabase free-tier locks email templates; "Continue as guest" is the working path. Custom SMTP (Resend) is the fix.</td></tr>
+          <tr><td>Payments (Razorpay / Stripe)</td><td><span class="pill p-no">Deferred</span></td><td>Bookings settle on service for now; dual-currency needs two gateways behind one ledger.</td></tr>
+          <tr><td>The AI engines</td><td><span class="pill p-no">Deferred</span></td><td>No-show / churn models need booking history to train on — impossible at zero bookings. AI follows the data, by design.</td></tr>
+          <tr><td>Worker verification console</td><td><span class="pill p-no">Deferred</span></td><td>Onboarded workers stay pending until an ops tool (P1) verifies eKYC + police.</td></tr>
+          <tr><td>GPS check-in · notifications · ops dashboard</td><td><span class="pill p-no">Deferred</span></td><td>P4–P5 of the delivery plan.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="note">
+      <p class="h">Why this list matters</p>
+      <p>The prototype's failure mode was showing all of the above as if they worked. Naming what's deferred — and why — is the difference between a demo and an engineering deliverable.</p>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="n">06</span> Companion documents</h2>
+    <div class="grid g2">
+      <div class="card"><p class="t">Solution Architecture</p><p><code>docs/casai-solution-architecture.html</code> — bounded contexts, backend stack, C4 diagrams, data model, key flows, ADRs.</p></div>
+      <div class="card"><p class="t">Phased Delivery Plan</p><p><code>docs/casai-mvp-delivery-plan.html</code> — six phases sequenced by dependency and risk, with scope in/out and long-lead items.</p></div>
+    </div>
+    <p style="margin-top:16px">Source, migrations and the full test suite: <a href="https://github.com/11820965/AIPM-BYOP">github.com/11820965/AIPM-BYOP</a>. To run it: <code>npm install</code>, <code>npm run dev</code>, then <code>/login → Continue as guest</code>.</p>
+  </section>
+
+  <footer>Casai · Current State · BYOP submission · benchmarked and verified against a live Supabase backend</footer>
+</div>
