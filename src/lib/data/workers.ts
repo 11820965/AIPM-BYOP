@@ -67,17 +67,25 @@ export function useWorkers(category: ServiceCategory, filters: WorkerFilters = {
     queryFn: async (): Promise<WorkerCard[]> => {
       if (!supabase) return [];
 
-      const { data, error } = await supabase
+      let query = supabase
         .from("worker_public")
         .select("*")
-        .eq("service_category", category)
-        .gte("rating", minRating)
-        .gte("reliability_score", minReliability / 100)
-        // AI-01 ranks this list in P4. Until a model exists there is
-        // nothing to learn from, so order by the strongest real signal we
-        // have rather than invent a match score.
-        .order("reliability_score", { ascending: false })
-        .order("rating", { ascending: false });
+        .eq("service_category", category);
+
+      // Only apply a threshold when one is actually set. A blanket
+      // `rating >= 0` evaluates to NULL for an unrated (newly verified)
+      // worker and would silently exclude them — so a pro just approved by
+      // ops would never appear until their first rating. Filter only when
+      // the caller asks for a minimum.
+      if (minRating > 0) query = query.gte("rating", minRating);
+      if (minReliability > 0) query = query.gte("reliability_score", minReliability / 100);
+
+      // AI-01 ranks this list in P4. Until a model exists there is nothing
+      // to learn from, so order by the strongest real signal we have.
+      // nullsFirst:false keeps unrated newcomers at the end, not the top.
+      const { data, error } = await query
+        .order("reliability_score", { ascending: false, nullsFirst: false })
+        .order("rating", { ascending: false, nullsFirst: false });
 
       if (error) throw error;
       return (data ?? []).map(toCard);

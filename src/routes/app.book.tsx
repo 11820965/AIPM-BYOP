@@ -157,11 +157,13 @@ function BookPage() {
                       className="font-semibold hover:underline"
                     >{w.name}</button>
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <Star className="h-3 w-3 fill-current" style={{ color: "var(--gold)" }} /> {w.rating} · {w.jobs} jobs
+                      {w.jobs > 0
+                        ? <><Star className="h-3 w-3 fill-current" style={{ color: "var(--gold)" }} /> {w.rating} · {w.jobs} jobs</>
+                        : <span>Newly verified · no jobs yet</span>}
                     </div>
                     <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[10px]">
                       <span className="rounded-full px-2 py-0.5 font-semibold" style={{ background: "color-mix(in oklab, var(--teal) 16%, transparent)", color: "var(--teal)" }}>
-                        {w.reliability}% reliable
+                        {w.jobs > 0 ? `${w.reliability}% reliable` : "New pro"}
                       </span>
                     </div>
                   </div>
@@ -174,7 +176,7 @@ function BookPage() {
                 <div className="mt-3 flex flex-wrap gap-1.5 text-[10px]">
                   {w.ekycVerified && <Pill color="var(--teal)" bg="color-mix(in oklab, var(--teal) 14%, transparent)">eKYC</Pill>}
                   {w.policeVerified && <Pill color="var(--teal)" bg="color-mix(in oklab, var(--teal) 14%, transparent)">Police verified</Pill>}
-                  <Pill color="var(--purple)" bg="color-mix(in oklab, var(--purple) 14%, transparent)">Trust {w.trust}/100</Pill>
+                  {w.jobs > 0 && <Pill color="var(--purple)" bg="color-mix(in oklab, var(--purple) 14%, transparent)">Trust {w.trust}/100</Pill>}
                 </div>
 
                 <div className="mt-3 flex items-end justify-between">
