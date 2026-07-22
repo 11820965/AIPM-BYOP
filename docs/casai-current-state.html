@@ -87,21 +87,92 @@
   <section>
     <h2><span class="n">02</span> What exists now</h2>
     <div class="stats">
-      <div class="stat"><div class="v">3</div><div class="k">Live contexts</div></div>
-      <div class="stat"><div class="v">9</div><div class="k">DB migrations</div></div>
-      <div class="stat"><div class="v">49</div><div class="k">Passing tests</div></div>
-      <div class="stat"><div class="v">100%</div><div class="k">On real backend</div></div>
+      <div class="stat"><div class="v">4</div><div class="k">Live contexts</div></div>
+      <div class="stat"><div class="v">10</div><div class="k">DB migrations</div></div>
+      <div class="stat"><div class="v">55</div><div class="k">Passing tests</div></div>
+      <div class="stat"><div class="v">CI</div><div class="k">Green</div></div>
     </div>
-    <p>All three user contexts run on a real Supabase (Postgres) backend, each <strong>verified by driving it live against the database</strong> — not asserted, watched.</p>
-    <div class="grid g3">
+    <p>Four user contexts run on a real Supabase (Postgres) backend, each <strong>verified by driving it live against the database</strong> — not asserted, watched. (The feature-by-feature breakdown is in §03.)</p>
+    <div class="grid g2">
       <div class="card ctx"><p class="t">Household</p><p>Guest login → browse verified workers from Postgres → book → confirmation reads back from the database. Real row, correct IST/UTC handling.</p></div>
       <div class="card ctx n"><p class="t">NRI care</p><p>Consent-code linking → secure role elevation → dashboard shows the parents' home's real bookings in <strong>dual timezone</strong> → book a caregiver on behalf.</p></div>
       <div class="card ctx w"><p class="t">Worker</p><p>Onboard → real worker ID + passport minted → dashboard, bookings, earnings and profile all read the worker's own record from Postgres.</p></div>
+      <div class="card ctx" style="border-top-color:var(--gap)"><p class="t">Ops</p><p>Admin signs in → reviews the pending-worker queue → approves eKYC + police → the worker flips to verified and becomes bookable.</p></div>
     </div>
   </section>
 
   <section>
-    <h2><span class="n">03</span> Architecture at a glance</h2>
+    <h2><span class="n">03</span> Feature status — mapped to the PRD</h2>
+    <p>Every screen and feature from the PRD, in three honest buckets: <span class="pill p-live">Live</span> means wired to the real backend and verified; <span class="pill p-part">Front-end</span> means the UI is built but the data is still seed/simulated; <span class="pill p-no">Not built</span> means no functional implementation yet.</p>
+
+    <h3>Live — real backend, verified</h3>
+    <div class="tbl">
+      <table>
+        <thead><tr><th>Feature</th><th>PRD</th><th>Status</th></tr></thead>
+        <tbody>
+          <tr><td>Landing + role cards, guest &amp; admin entry</td><td>FR-01</td><td><span class="pill p-live">Live</span></td></tr>
+          <tr><td>Guest (anonymous) &amp; admin sign-in, server-assigned roles</td><td>FR-09</td><td><span class="pill p-live">Live</span></td></tr>
+          <tr><td>Book a service — workers from Postgres, filters, slot, real booking row</td><td>FR-03</td><td><span class="pill p-live">Live</span></td></tr>
+          <tr><td>Booking confirmation — reads back from the database</td><td>FR-03-08</td><td><span class="pill p-live">Live</span></td></tr>
+          <tr><td>Single-source catalog &amp; pricing (₹ and $)</td><td>Design</td><td><span class="pill p-live">Live</span></td></tr>
+          <tr><td>Worker passport — the worker's own verified record</td><td>FR-05</td><td><span class="pill p-live">Live</span></td></tr>
+          <tr><td>Worker dashboard · bookings · earnings · profile</td><td>Worker app</td><td><span class="pill p-live">Live</span></td></tr>
+          <tr><td>Worker onboarding (mints a pending worker + role)</td><td>FR-09-05</td><td><span class="pill p-live">Live</span></td></tr>
+          <tr><td>NRI household linking via consent code</td><td>FR-08-05</td><td><span class="pill p-live">Live</span></td></tr>
+          <tr><td>NRI dashboard — linked home's bookings, dual timezone</td><td>FR-08</td><td><span class="pill p-live">Live</span></td></tr>
+          <tr><td>NRI caregiver/driver booking on behalf of the home</td><td>FR-08</td><td><span class="pill p-live">Live</span></td></tr>
+          <tr><td>Ops worker verification (approve eKYC + police)</td><td>Ops</td><td><span class="pill p-live">Live</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>Front-end only — UI built, data still seed / simulated</h3>
+    <div class="tbl">
+      <table>
+        <thead><tr><th>Feature</th><th>PRD</th><th>Status</th></tr></thead>
+        <tbody>
+          <tr><td>Home AI insight cards (cook leave, plan saving, reliability)</td><td>FR-02-04…07</td><td><span class="pill p-part">Static text</span></td></tr>
+          <tr><td>Subscription plans (Lite / Family / Care+)</td><td>Monetisation</td><td><span class="pill p-part">No payment</span></td></tr>
+          <tr><td>AI Insights — voice booking + no-show cards</td><td>FR-07</td><td><span class="pill p-part">Simulated</span></td></tr>
+          <tr><td>Household worker profile (trust stats, reviews, Q&amp;A, timeline)</td><td>FR-04</td><td><span class="pill p-part">Seed data</span></td></tr>
+          <tr><td>Pre-book Backup (continuity of care)</td><td>Continuity</td><td><span class="pill p-part">Seed data</span></td></tr>
+          <tr><td>Post-service review</td><td>Q1</td><td><span class="pill p-part">Seed data</span></td></tr>
+          <tr><td>Registration wizards (household / worker / NRI, 8-step)</td><td>FR-09</td><td><span class="pill p-part">localStorage</span></td></tr>
+          <tr><td>Email OTP login</td><td>FR-09</td><td><span class="pill p-part">Built · blocked</span></td></tr>
+          <tr><td>NRI booking history</td><td>FR-08</td><td><span class="pill p-part">Stub</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="" style="font-size:14px;color:var(--muted)">Note: the real onboarding paths <em>are</em> live — guest sign-in, <code>become_worker</code>, and consent-code linking. The multi-step registration <em>wizards</em> are separate front-end demos that still write to localStorage.</p>
+
+    <h3>Not built — no functional implementation yet</h3>
+    <div class="tbl">
+      <table>
+        <thead><tr><th>Feature</th><th>PRD</th><th>Status</th></tr></thead>
+        <tbody>
+          <tr><td>AI-01 Matching engine (list uses reliability ordering, no model)</td><td>AI-01</td><td><span class="pill p-no">Deferred</span></td></tr>
+          <tr><td>AI-02 No-show prediction + auto-escalation</td><td>AI-02</td><td><span class="pill p-no">Deferred</span></td></tr>
+          <tr><td>AI-03 NLP / voice engine</td><td>AI-03</td><td><span class="pill p-no">Deferred</span></td></tr>
+          <tr><td>AI-04 Home Health scoring</td><td>AI-04</td><td><span class="pill p-no">Retired</span></td></tr>
+          <tr><td>AI-05 Churn scoring engine</td><td>AI-05</td><td><span class="pill p-no">Deferred</span></td></tr>
+          <tr><td>Payments — Razorpay / Stripe, subscriptions, worker payouts</td><td>Data model</td><td><span class="pill p-no">Deferred</span></td></tr>
+          <tr><td>GPS check-in + notification pipeline (&lt;60s NRI alert)</td><td>FR-08-02</td><td><span class="pill p-no">Deferred</span></td></tr>
+          <tr><td>Real eKYC / police (UIDAI) — ops approves manually today</td><td>FR-09-05</td><td><span class="pill p-no">Deferred</span></td></tr>
+          <tr><td>Real SMS / email OTP delivery (DLT, SMTP)</td><td>FR-09-02</td><td><span class="pill p-no">Deferred</span></td></tr>
+          <tr><td>Skill Academy, certifications, availability, service areas</td><td>FR-05-07</td><td><span class="pill p-no">Deferred</span></td></tr>
+          <tr><td>Ops analytics dashboard (NSM, SLA, churn queue, worker map)</td><td>Design §08</td><td><span class="pill p-no">Deferred</span></td></tr>
+          <tr><td>Home Manager chat · weekly digest · WhatsApp</td><td>FR-08-04/07</td><td><span class="pill p-no">Deferred</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="note">
+      <p class="h">How to read this</p>
+      <p>The prototype showed every row above as if it were done. The value here is the split: the <strong>transactional spine</strong> of all four contexts is Live on a real backend; the <strong>AI, payments and notification</strong> layers are honestly Not built; and a handful of screens are Front-end shells awaiting their data. Each deferral is a sequenced decision (see the delivery plan), not an oversight.</p>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="n">04</span> Architecture at a glance</h2>
     <div class="grid g2">
       <div class="card"><p class="t">Stack</p><ul>
         <li>TanStack Start (React 19, SSR + server fns)</li>
@@ -123,7 +194,7 @@
   </section>
 
   <section>
-    <h2><span class="n">04</span> Evidence, not assertion</h2>
+    <h2><span class="n">05</span> Evidence, not assertion</h2>
     <p>Every claim was checked against the live database. The same guarantees are pinned by an automated suite that runs in CI on real Postgres (compiled to WASM), where each test maps to a specific defect the prototype had:</p>
     <ul class="body">
       <li>An anonymous visitor sees <strong>nothing</strong>; each context sees only its own data</li>
@@ -136,7 +207,7 @@
   </section>
 
   <section>
-    <h2><span class="n">05</span> Deliberately deferred</h2>
+    <h2><span class="n">06</span> Deliberately deferred</h2>
     <p>An honest map of what is <em>not</em> built — each a conscious call, not an oversight.</p>
     <div class="tbl">
       <table>
@@ -145,8 +216,8 @@
           <tr><td>Real email login</td><td><span class="pill p-part">Guest works</span></td><td>Supabase free-tier locks email templates; "Continue as guest" is the working path. Custom SMTP (Resend) is the fix.</td></tr>
           <tr><td>Payments (Razorpay / Stripe)</td><td><span class="pill p-no">Deferred</span></td><td>Bookings settle on service for now; dual-currency needs two gateways behind one ledger.</td></tr>
           <tr><td>The AI engines</td><td><span class="pill p-no">Deferred</span></td><td>No-show / churn models need booking history to train on — impossible at zero bookings. AI follows the data, by design.</td></tr>
-          <tr><td>Worker verification console</td><td><span class="pill p-no">Deferred</span></td><td>Onboarded workers stay pending until an ops tool (P1) verifies eKYC + police.</td></tr>
-          <tr><td>GPS check-in · notifications · ops dashboard</td><td><span class="pill p-no">Deferred</span></td><td>P4–P5 of the delivery plan.</td></tr>
+          <tr><td>Real eKYC / police verification (UIDAI)</td><td><span class="pill p-part">Manual</span></td><td>The ops console to approve workers is <strong>built and live</strong>; what's deferred is the automated UIDAI/police integration behind it — an admin approves manually for now.</td></tr>
+          <tr><td>GPS check-in · notifications · ops analytics</td><td><span class="pill p-no">Deferred</span></td><td>P4–P5 of the delivery plan. (Ops <em>verification</em> is done; the NSM/SLA/churn dashboard is not.)</td></tr>
         </tbody>
       </table>
     </div>
@@ -157,7 +228,7 @@
   </section>
 
   <section>
-    <h2><span class="n">06</span> Running &amp; sharing it</h2>
+    <h2><span class="n">07</span> Running &amp; sharing it</h2>
     <p>The backend — Supabase (Postgres + Auth) — runs in the cloud, always on. Its dashboard was only ever opened once, to apply the migrations; that setup is done. <strong>You do not open Supabase to run the app.</strong> You start the front-end and it reaches Supabase over the internet.</p>
     <h3>Run it locally</h3>
     <div class="tbl">
@@ -177,7 +248,7 @@
   </section>
 
   <section>
-    <h2><span class="n">07</span> Companion documents</h2>
+    <h2><span class="n">08</span> Companion documents</h2>
     <div class="grid g2">
       <div class="card"><p class="t">Solution Architecture</p><p><code>docs/casai-solution-architecture.html</code> — bounded contexts, backend stack, C4 diagrams, data model, key flows, ADRs.</p></div>
       <div class="card"><p class="t">Phased Delivery Plan</p><p><code>docs/casai-mvp-delivery-plan.html</code> — six phases sequenced by dependency and risk, with scope in/out and long-lead items.</p></div>
