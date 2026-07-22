@@ -157,12 +157,32 @@
   </section>
 
   <section>
-    <h2><span class="n">06</span> Companion documents</h2>
+    <h2><span class="n">06</span> Running &amp; sharing it</h2>
+    <p>The backend — Supabase (Postgres + Auth) — runs in the cloud, always on. Its dashboard was only ever opened once, to apply the migrations; that setup is done. <strong>You do not open Supabase to run the app.</strong> You start the front-end and it reaches Supabase over the internet.</p>
+    <h3>Run it locally</h3>
+    <div class="tbl">
+      <table>
+        <tbody>
+          <tr><td style="width:38%"><code>npm install</code></td><td>Once, to fetch dependencies.</td></tr>
+          <tr><td><code>npm run dev</code></td><td>Starts the app on <code>localhost</code>. Open it, then use <b>Guest user</b> or <b>Admin</b> on the landing page.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>It needs a <code>.env</code> file with two values — <code>VITE_SUPABASE_URL</code> and <code>VITE_SUPABASE_ANON_KEY</code> — which point the front-end at Supabase. Both are public by design (the anon key ships in the browser; Row Level Security is what protects the data), so they are safe to share. <code>.env</code> is git-ignored, so a fresh clone won't include it.</p>
+    <h3>Share it with someone</h3>
+    <div class="grid g2">
+      <div class="card"><p class="t">They run the code themselves</p><p>Give them the repo plus your two <code>.env</code> values. <code>npm install &amp;&amp; npm run dev</code> and they're on the same Supabase — migrations are already applied. (Or they create their own Supabase and run the migrations in <code>supabase/migrations</code>.)</p></div>
+      <div class="card"><p class="t">A live link anyone can open</p><p><code>localhost</code> only exists on your machine — no one else can reach it. To hand out a URL, <strong>deploy</strong> the app (it targets Cloudflare Workers) for a public <code>https://…</code> link that needs no setup from the visitor.</p></div>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="n">07</span> Companion documents</h2>
     <div class="grid g2">
       <div class="card"><p class="t">Solution Architecture</p><p><code>docs/casai-solution-architecture.html</code> — bounded contexts, backend stack, C4 diagrams, data model, key flows, ADRs.</p></div>
       <div class="card"><p class="t">Phased Delivery Plan</p><p><code>docs/casai-mvp-delivery-plan.html</code> — six phases sequenced by dependency and risk, with scope in/out and long-lead items.</p></div>
     </div>
-    <p style="margin-top:16px">Source, migrations and the full test suite: <a href="https://github.com/11820965/AIPM-BYOP">github.com/11820965/AIPM-BYOP</a>. To run it: <code>npm install</code>, <code>npm run dev</code>, then <code>/login → Continue as guest</code>.</p>
+    <p style="margin-top:16px">Source, migrations and the full test suite: <a href="https://github.com/11820965/AIPM-BYOP">github.com/11820965/AIPM-BYOP</a>.</p>
   </section>
 
   <footer>Casai · Current State · BYOP submission · benchmarked and verified against a live Supabase backend</footer>
