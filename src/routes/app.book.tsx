@@ -2,9 +2,9 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { AppShell } from "@/components/layout/AppShell";
 import { useEffect, useState } from "react";
 import { useViewport } from "@/lib/app/state";
-import { Star, Shield, Sparkles, ChefHat, Car, ChevronRight, AlertCircle, Minus, Plus, Loader2 } from "lucide-react";
-import { useWorkers, type WorkerCard } from "@/lib/data/workers";
-import { useCreateBooking, slotToDatetime } from "@/lib/data/bookings";
+import { Star, Shield, Sparkles, ChefHat, Car, ChevronRight, AlertCircle, Minus, Plus, Loader2, CalendarDays, CalendarX } from "lucide-react";
+import { useAvailableWorkers, type AvailableWorker } from "@/lib/data/workers";
+import { useCreateBooking, bookingWindow, dayWithSlot, slotIsPast } from "@/lib/data/bookings";
 import { getService, formatServicePrice, formatMoney } from "@/lib/catalog/catalog";
 import { isSupabaseConfigured } from "@/lib/supabase/client";
 import { useSession } from "@/lib/auth/session";
@@ -26,14 +26,16 @@ const CATS: { id: ServiceCategory; icon: any }[] = [
   { id: "driver", icon: Car },
 ];
 
-const SLOTS = ["8 AM", "10 AM", "12 PM", "2 PM", "4 PM", "6 PM", "8 PM", "Now"];
+const SLOTS = ["8 AM", "10 AM", "12 PM", "2 PM", "4 PM", "6 PM", "8 PM"];
 
 function BookPage() {
   const search = Route.useSearch();
   const initialCat = (search.cat && CATS.some((c) => c.id === search.cat) ? search.cat : "cook") as ServiceCategory;
+  const window15 = bookingWindow(); // today .. today+14
   const [cat, setCat] = useState<ServiceCategory>(initialCat);
-  const [worker, setWorker] = useState<WorkerCard | null>(null);
+  const [dayIdx, setDayIdx] = useState<number>(0);
   const [slot, setSlot] = useState<string>(SLOTS[0]);
+  const [worker, setWorker] = useState<AvailableWorker | null>(null);
   const [duration, setDuration] = useState<number>(2);
   const [address, setAddress] = useState<string>("");
   const [notes, setNotes] = useState<string>("");
@@ -44,16 +46,18 @@ function BookPage() {
   const { session } = useSession();
   const createBooking = useCreateBooking();
 
-  // Workers now come from Postgres (worker_public), not a seed array.
-  const { data: workers = [], isLoading, error: loadError } = useWorkers(cat);
+  const day = window15[dayIdx];
+  const past = slotIsPast(day, slot);
+  const slotIso = dayWithSlot(day, slot);
 
-  // Keep a valid selection as the list changes (category switch / load).
+  // Availability is scored server-side for this exact date + time slot.
+  const { data: workers = [], isLoading, error: loadError } = useAvailableWorkers(cat, past ? null : slotIso);
+
+  // Keep a valid, still-available selection as date / time / category change.
   useEffect(() => {
-    if (workers.length === 0) {
-      setWorker(null);
-    } else if (!worker || !workers.some((w) => w.id === worker.id)) {
-      setWorker(workers[0]);
-    }
+    const usable = workers.filter((w) => w.available);
+    if (usable.length === 0) setWorker(null);
+    else if (!worker || !usable.some((w) => w.id === worker.id)) setWorker(usable[0]);
   }, [workers, worker]);
 
   const service = getService(cat);
@@ -61,22 +65,23 @@ function BookPage() {
   const subtotalMinor = priceMinor * duration;
   const discountMinor = duration >= 3 ? Math.round(subtotalMinor * 0.12) : 0;
   const totalMinor = subtotalMinor - discountMinor;
+  const availableCount = workers.filter((w) => w.available).length;
 
   const confirm = async () => {
     setError("");
-    if (!worker) return setError("Select a worker first.");
-    if (!slot) return setError("Pick a time slot.");
+    if (past) return setError("That time has already passed — pick a later slot.");
+    if (!worker) return setError("Select an available worker first.");
+    if (!worker.available) return setError("That worker isn't free at this time.");
     if (duration < 1) return setError("Duration must be at least 1 hour.");
     if (address.trim().length < 8) return setError("Enter a complete service address (8+ characters).");
     if (!session) return setError("Please sign in to confirm a booking.");
 
     try {
-      // Real row in Postgres now, not localStorage. household_id, the
-      // verified-worker check and the amount are all enforced server-side.
+      // Real row in Postgres. slot_datetime is the chosen date + time.
       const b = await createBooking.mutateAsync({
         workerId: worker.id,
         category: cat,
-        slotDatetime: slotToDatetime(slot),
+        slotDatetime: slotIso,
         durationHours: duration,
         totalMinor,
         currency: service.currency,
@@ -119,75 +124,113 @@ function BookPage() {
           )}
         </aside>
 
-        <section className="space-y-3">
+        <section className="space-y-4">
+          {/* 15-day booking window */}
+          <div>
+            <div className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              <CalendarDays className="h-3.5 w-3.5" /> Choose a date · next 15 days
+            </div>
+            <div className="flex gap-2 overflow-x-auto pb-1">
+              {window15.map((d, i) => {
+                const on = i === dayIdx;
+                return (
+                  <button key={i} onClick={() => { setDayIdx(i); }}
+                    className="flex min-w-[56px] shrink-0 flex-col items-center rounded-xl border px-2 py-2 transition"
+                    style={{ borderColor: on ? "var(--teal)" : "var(--border)", background: on ? "color-mix(in oklab, var(--teal) 14%, transparent)" : "var(--card)" }}>
+                    <span className="text-[10px] uppercase tracking-wide" style={{ color: on ? "var(--teal)" : "var(--muted-foreground)" }}>{d.toLocaleDateString("en-IN", { weekday: "short" })}</span>
+                    <span className="text-base font-bold" style={{ color: on ? "var(--teal)" : "var(--foreground)" }}>{d.getDate()}</span>
+                    <span className="text-[9px] text-muted-foreground">{i === 0 ? "Today" : d.toLocaleDateString("en-IN", { month: "short" })}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* time slots (past slots for today are disabled) */}
+          <div>
+            <div className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Choose a time</div>
+            <div className="flex flex-wrap gap-2">
+              {SLOTS.map((s) => {
+                const on = slot === s;
+                const disabled = slotIsPast(day, s);
+                return (
+                  <button key={s} disabled={disabled} onClick={() => setSlot(s)}
+                    className="rounded-lg px-3 py-1.5 text-xs font-medium transition disabled:opacity-35 disabled:line-through"
+                    style={{ background: on ? "var(--teal)" : "transparent", color: on ? "var(--background)" : "var(--foreground)", border: "1px solid " + (on ? "var(--teal)" : "var(--border)") }}>
+                    {s}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
           <h3 className="text-sm font-semibold">
-            {isLoading ? "Finding workers near you…" : `${workers.length} verified near you`}
+            {past ? "That time has passed — pick a later slot"
+              : isLoading ? "Checking availability…"
+              : `${availableCount} available · ${dayIdx === 0 ? "today" : day.toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short" })} at ${slot}`}
           </h3>
 
           {!isSupabaseConfigured && <NotConfigured />}
           {isSupabaseConfigured && loadError && (
-            <ResultNote tone="error">
-              Couldn't load workers. Check your connection and try again.
-            </ResultNote>
+            <ResultNote tone="error">Couldn't check availability. Try again.</ResultNote>
           )}
-          {isSupabaseConfigured && isLoading && <WorkerSkeletons />}
-          {isSupabaseConfigured && !isLoading && !loadError && workers.length === 0 && (
-            <ResultNote>No verified {service.displayName.toLowerCase()} available in your zone yet.</ResultNote>
+          {isSupabaseConfigured && isLoading && !past && <WorkerSkeletons />}
+          {isSupabaseConfigured && !isLoading && !loadError && !past && workers.length === 0 && (
+            <ResultNote>No verified {service.displayName.toLowerCase()} in your zone yet.</ResultNote>
+          )}
+          {isSupabaseConfigured && !isLoading && !past && workers.length > 0 && availableCount === 0 && (
+            <ResultNote tone="error">Every {service.displayName.toLowerCase()} is booked at this time — try another slot or date.</ResultNote>
           )}
 
           <div className="grid gap-3 md:grid-cols-2">
-            {workers.map((w, i) => (
-              <div key={w.id}
-                onClick={() => setWorker(w)}
-                className="cursor-pointer rounded-2xl border bg-card p-4 transition hover:border-primary"
-                style={{ borderColor: worker?.id === w.id ? "var(--teal)" : "var(--border)" }}>
-                {/* Honest label: the list is ordered by reliability. AI-ranked
-                    matching is P4 — there is no model to rank on yet. */}
-                {i === 0 && <span className="mb-2 inline-block rounded-full px-2 py-0.5 text-[10px] font-semibold" style={{ background: "var(--teal)", color: "var(--background)" }}>Most reliable</span>}
-                <div className="flex items-center gap-3">
-                  <button
-                    onClick={(e) => { e.stopPropagation(); nav({ to: "/app/worker/$id", params: { id: w.id } }); }}
-                    className="flex h-12 w-12 items-center justify-center rounded-full font-semibold"
-                    style={{ background: "var(--teal)", color: "var(--background)" }}
-                    aria-label={`Open ${w.name}'s profile`}
-                  >{w.name[0]}</button>
-                  <div className="flex-1">
-                    <button
-                      onClick={(e) => { e.stopPropagation(); nav({ to: "/app/worker/$id", params: { id: w.id } }); }}
-                      className="font-semibold hover:underline"
-                    >{w.name}</button>
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      {w.jobs > 0
-                        ? <><Star className="h-3 w-3 fill-current" style={{ color: "var(--gold)" }} /> {w.rating} · {w.jobs} jobs</>
-                        : <span>Newly verified · no jobs yet</span>}
-                    </div>
-                    <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[10px]">
-                      <span className="rounded-full px-2 py-0.5 font-semibold" style={{ background: "color-mix(in oklab, var(--teal) 16%, transparent)", color: "var(--teal)" }}>
-                        {w.jobs > 0 ? `${w.reliability}% reliable` : "New pro"}
-                      </span>
-                    </div>
+            {workers.map((w) => {
+              const free = w.available;
+              const selected = worker?.id === w.id;
+              return (
+                <div key={w.id}
+                  onClick={() => { if (free) setWorker(w); }}
+                  className={"rounded-2xl border bg-card p-4 transition " + (free ? "cursor-pointer hover:border-primary" : "cursor-not-allowed opacity-55")}
+                  style={{ borderColor: selected ? "var(--teal)" : "var(--border)" }}>
+                  <div className="mb-2 flex items-center justify-between">
+                    {free
+                      ? <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold" style={{ background: "color-mix(in oklab, var(--teal) 16%, transparent)", color: "var(--teal)" }}>Available</span>
+                      : <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold" style={{ background: "var(--muted)", color: "var(--muted-foreground)" }}><CalendarX className="h-3 w-3" /> Booked at this time</span>}
+                    {selected && free && <span className="text-[10px] font-semibold" style={{ color: "var(--teal)" }}>Selected</span>}
                   </div>
-                  <Shield className="h-4 w-4" style={{ color: "var(--teal)" }} />
+                  <div className="flex items-center gap-3">
+                    <button onClick={(e) => { e.stopPropagation(); nav({ to: "/app/worker/$id", params: { id: w.id } }); }}
+                      className="flex h-12 w-12 items-center justify-center rounded-full font-semibold" style={{ background: "var(--teal)", color: "var(--background)" }}
+                      aria-label={`Open ${w.name}'s profile`}>{w.name[0]}</button>
+                    <div className="flex-1">
+                      <button onClick={(e) => { e.stopPropagation(); nav({ to: "/app/worker/$id", params: { id: w.id } }); }} className="font-semibold hover:underline">{w.name}</button>
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        {w.jobs > 0
+                          ? <><Star className="h-3 w-3 fill-current" style={{ color: "var(--gold)" }} /> {w.rating} · {w.jobs} jobs</>
+                          : <span>Newly verified · no jobs yet</span>}
+                      </div>
+                      <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[10px]">
+                        <span className="rounded-full px-2 py-0.5 font-semibold" style={{ background: "color-mix(in oklab, var(--teal) 16%, transparent)", color: "var(--teal)" }}>
+                          {w.jobs > 0 ? `${w.reliability}% reliable` : "New pro"}
+                        </span>
+                      </div>
+                    </div>
+                    <Shield className="h-4 w-4" style={{ color: "var(--teal)" }} />
+                  </div>
+                  <div className="mt-3 flex flex-wrap gap-1.5 text-[10px]">
+                    {w.ekycVerified && <Pill color="var(--teal)" bg="color-mix(in oklab, var(--teal) 14%, transparent)">eKYC</Pill>}
+                    {w.policeVerified && <Pill color="var(--teal)" bg="color-mix(in oklab, var(--teal) 14%, transparent)">Police verified</Pill>}
+                    {w.jobs > 0 && <Pill color="var(--purple)" bg="color-mix(in oklab, var(--purple) 14%, transparent)">Trust {w.trust}/100</Pill>}
+                  </div>
+                  <div className="mt-3 flex items-end justify-between">
+                    <div className="text-lg font-bold">{formatMoney(w.priceMinor)}<span className="text-xs font-normal text-muted-foreground">/hr</span></div>
+                    <button onClick={(e) => { e.stopPropagation(); nav({ to: "/app/worker/$id", params: { id: w.id } }); }}
+                      className="inline-flex items-center gap-1 text-xs font-semibold" style={{ color: "var(--teal)" }}>
+                      View profile <ChevronRight className="h-3 w-3" />
+                    </button>
+                  </div>
                 </div>
-
-                {/* Verification badges — now driven by real status, not a
-                    seed array. A worker only appears here if is_live, so both
-                    are verified; shown for the trust signal they carry. */}
-                <div className="mt-3 flex flex-wrap gap-1.5 text-[10px]">
-                  {w.ekycVerified && <Pill color="var(--teal)" bg="color-mix(in oklab, var(--teal) 14%, transparent)">eKYC</Pill>}
-                  {w.policeVerified && <Pill color="var(--teal)" bg="color-mix(in oklab, var(--teal) 14%, transparent)">Police verified</Pill>}
-                  {w.jobs > 0 && <Pill color="var(--purple)" bg="color-mix(in oklab, var(--purple) 14%, transparent)">Trust {w.trust}/100</Pill>}
-                </div>
-
-                <div className="mt-3 flex items-end justify-between">
-                  <div className="text-lg font-bold">{formatMoney(w.priceMinor)}<span className="text-xs font-normal text-muted-foreground">/hr</span></div>
-                  <button onClick={(e) => { e.stopPropagation(); nav({ to: "/app/worker/$id", params: { id: w.id } }); }}
-                    className="inline-flex items-center gap-1 text-xs font-semibold" style={{ color: "var(--teal)" }}>
-                    View profile <ChevronRight className="h-3 w-3" />
-                  </button>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </section>
 
@@ -196,20 +239,7 @@ function BookPage() {
           <div className="mt-3 space-y-3 text-sm">
             <Row k="Service" v={service.displayName} />
             <Row k="Worker" v={worker?.name ?? "—"} />
-            <div className="rounded-lg bg-muted p-3">
-              <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Pick a slot</div>
-              <div className="mt-2 grid grid-cols-4 gap-1.5">
-                {SLOTS.map((s) => {
-                  const on = slot === s;
-                  return (
-                    <button key={s} onClick={() => setSlot(s)} className="rounded-md py-1.5 text-[11px] transition"
-                      style={{ background: on ? "var(--teal)" : "transparent", color: on ? "var(--background)" : "var(--foreground)", border: "1px solid " + (on ? "var(--teal)" : "var(--border)") }}>
-                      {s}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
+            <Row k="When" v={<span>{dayIdx === 0 ? "Today" : day.toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short" })} · {slot}</span>} />
             <div className="flex items-center justify-between">
               <span className="text-muted-foreground">Duration</span>
               <div className="flex items-center gap-2">

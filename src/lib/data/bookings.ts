@@ -129,6 +129,31 @@ export function useBooking(bookingId: string | undefined) {
   });
 }
 
+/** Time-slot labels → 24h hour. */
+export const SLOT_HOURS: Record<string, number> = {
+  "8 AM": 8, "10 AM": 10, "12 PM": 12, "2 PM": 14, "4 PM": 16, "6 PM": 18, "8 PM": 20,
+};
+
+/** The next 15 days starting today (the booking window). */
+export function bookingWindow(now: Date = new Date()): Date[] {
+  const base = new Date(now); base.setHours(0, 0, 0, 0);
+  return Array.from({ length: 15 }, (_, i) => {
+    const d = new Date(base); d.setDate(base.getDate() + i); return d;
+  });
+}
+
+/** Combine a chosen day + slot label into a concrete ISO timestamp. */
+export function dayWithSlot(day: Date, slot: string): string {
+  const d = new Date(day);
+  d.setHours(SLOT_HOURS[slot] ?? 8, 0, 0, 0);
+  return d.toISOString();
+}
+
+/** Is this day+slot in the past? (can't book backwards) */
+export function slotIsPast(day: Date, slot: string, now: Date = new Date()): boolean {
+  return new Date(dayWithSlot(day, slot)).getTime() <= now.getTime();
+}
+
 /**
  * Turn a slot label from the Book screen ("8 AM", "2 PM", "Now") into a
  * concrete ISO timestamp. If the hour has already passed today, roll to

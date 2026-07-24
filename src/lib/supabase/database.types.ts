@@ -148,6 +148,7 @@ export type Database = {
       become_worker: { Args: { p_name: string; p_category: ServiceCategory; p_zone: string }; Returns: string };
       become_ops: { Args: { p_passcode: string }; Returns: boolean };
       verify_worker: { Args: { p_worker_id: string }; Returns: undefined };
+      available_workers: { Args: { p_category: ServiceCategory; p_slot: string }; Returns: (WorkerPublic & { available: boolean })[] };
     };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;

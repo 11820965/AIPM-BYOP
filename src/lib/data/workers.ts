@@ -93,6 +93,29 @@ export function useWorkers(category: ServiceCategory, filters: WorkerFilters = {
   });
 }
 
+export type AvailableWorker = WorkerCard & { available: boolean };
+
+/**
+ * Live workers of a category with a real availability flag for a given
+ * date/time slot (0011). Availability is computed server-side across all
+ * households (privacy-preserving — only the boolean comes back).
+ */
+export function useAvailableWorkers(category: ServiceCategory, slotIso: string | null) {
+  return useQuery({
+    queryKey: ["available-workers", category, slotIso],
+    enabled: isSupabaseConfigured && Boolean(slotIso),
+    queryFn: async (): Promise<AvailableWorker[]> => {
+      if (!supabase || !slotIso) return [];
+      const { data, error } = await supabase.rpc("available_workers", {
+        p_category: category,
+        p_slot: slotIso,
+      });
+      if (error) throw error;
+      return (data ?? []).map((row) => ({ ...toCard(row as WorkerPublic), available: (row as { available: boolean }).available }));
+    },
+  });
+}
+
 export function useWorker(workerId: string | undefined) {
   return useQuery({
     queryKey: ["worker", workerId],
