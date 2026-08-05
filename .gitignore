@@ -47,6 +47,10 @@ ehthumbs.db
 $RECYCLE.BIN/
 .DS_Store
 
+# Word autorecovery / lock artifacts
+*(AutoRecovered).docx
+~$*.docx
+
 # Using npm (package-lock.json). bun.lock removed at fork to avoid two
 # disagreeing lockfiles.
 bun.lock
