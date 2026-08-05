@@ -1,15 +1,17 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { AppShell } from "@/components/layout/AppShell";
-import { useMemo, useState } from "react";
-import { Mic, ShieldAlert, ShieldCheck, Clock, UserCheck, BellRing, Play, RotateCcw, Loader2, CheckCircle2, XCircle } from "lucide-react";
-import { useUpcomingBookings, useWorkerNames, assessRisk, type RiskBand, type BookingRow } from "@/lib/data/insights";
+import { useMemo } from "react";
+import { Mic, ShieldAlert, ShieldCheck, Clock, UserCheck, BellRing, Loader2, CheckCircle2, XCircle, RefreshCw } from "lucide-react";
+import {
+  useUpcomingBookings, useWorkerMeta, useScoreBooking, useArrangeBackup, useResolveNoShow,
+  bandOf, factorsFor, BAND_LABEL, type RiskBand, type Factor, type BookingRow, type WorkerMeta,
+} from "@/lib/data/insights";
 import { getService } from "@/lib/catalog/catalog";
 import { isSupabaseConfigured } from "@/lib/supabase/client";
 
 export const Route = createFileRoute("/app/insights")({ component: Insights });
 
 const BAND_COLOR: Record<RiskBand, string> = { low: "var(--teal)", med: "var(--amber)", high: "var(--coral, #c0553f)" };
-const BAND_LABEL: Record<RiskBand, string> = { low: "Low risk", med: "Medium risk", high: "High risk" };
 const DOT: Record<"ok" | "watch" | "risk", string> = { ok: "var(--teal)", watch: "var(--amber)", risk: "var(--coral, #c0553f)" };
 
 function Insights() {
@@ -41,191 +43,204 @@ function Insights() {
 
 function NoShowSection() {
   const { data: bookings = [], isLoading, error } = useUpcomingBookings();
-  const { data: names = {} } = useWorkerNames(bookings.map((b) => b.worker_id));
+  const meta = useWorkerMeta([
+    ...bookings.map((b) => b.worker_id),
+    ...bookings.map((b) => b.backup_worker_id).filter((x): x is string => Boolean(x)),
+  ]);
+  const names = meta.data ?? {};
 
-  // Stable risk per booking; sort worst-first.
-  const scored = useMemo(
-    () => bookings.map((b) => ({ b, risk: assessRisk(b) })).sort((a, z) => z.risk.score - a.risk.score),
+  // Sort worst-first by the REAL persisted score (unscored rows sink last).
+  const sorted = useMemo(
+    () => [...bookings].sort((a, z) => (z.no_show_risk_score ?? -1) - (a.no_show_risk_score ?? -1)),
     [bookings],
   );
-  const top = scored[0];
+  const top = sorted[0];
 
   return (
     <section className="space-y-3">
       <div className="flex items-center gap-2">
         <ShieldAlert className="h-4 w-4" style={{ color: "var(--coral, #c0553f)" }} />
         <h3 className="text-sm font-semibold">No-show risk · your upcoming bookings</h3>
-        <span className="rounded-full px-2 py-0.5 text-[10px] font-semibold" style={{ background: "var(--muted)", color: "var(--muted-foreground)" }}>Simulated</span>
+        <span className="rounded-full px-2 py-0.5 text-[10px] font-semibold" style={{ background: "color-mix(in oklab, var(--teal) 16%, transparent)", color: "var(--teal)" }}>Live score</span>
       </div>
       <p className="text-xs text-muted-foreground">
-        Casai scores each upcoming booking for the chance the worker doesn't show, and pre-arranges a backup when the risk is high — before the slot.
-        <span className="opacity-70"> (Illustrative preview — the prediction model isn't live yet.)</span>
+        Each booking is scored in the database from the worker's real reliability and track record, how soon the slot is, and weekday vs weekend. When risk is high you can put a backup on standby before the slot — and check-in or no-show resolves it for real.
+        <span className="opacity-70"> (Heuristic score, not a trained model; production re-scores every 15 min.)</span>
       </p>
 
       {!isSupabaseConfigured && <Note>Supabase isn't configured.</Note>}
       {error && <Note tone="error">Couldn't load your bookings.</Note>}
       {isLoading && <div className="h-24 animate-pulse rounded-2xl border border-border bg-card" />}
-      {!isLoading && !error && scored.length === 0 && (
+      {!isLoading && !error && sorted.length === 0 && (
         <Note>No upcoming bookings. Book a service and its no-show risk will appear here.</Note>
       )}
 
-      {scored.length > 0 && (
+      {sorted.length > 0 && (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {scored.map(({ b, risk }) => (
-            <RiskCard key={b.booking_id} b={b} worker={names[b.worker_id] ?? b.worker_id} pct={Math.round(risk.score * 100)} band={risk.band} factors={risk.factors} />
+          {sorted.map((b) => (
+            <RiskCard key={b.booking_id} b={b} meta={names[b.worker_id]} backupName={b.backup_worker_id ? names[b.backup_worker_id]?.name : undefined} />
           ))}
         </div>
       )}
 
-      {top && <EscalationDemo booking={top.b} worker={names[top.b.worker_id] ?? "your worker"} band={top.risk.band} pct={Math.round(top.risk.score * 100)} />}
+      {top && <EscalationPanel booking={top} names={names} />}
     </section>
   );
 }
 
-function RiskCard({ b, worker, pct, band, factors }: { b: BookingRow; worker: string; pct: number; band: RiskBand; factors: { label: string; level: "ok" | "watch" | "risk" }[] }) {
-  const color = BAND_COLOR[band];
+function RiskCard({ b, meta, backupName }: { b: BookingRow; meta?: WorkerMeta; backupName?: string }) {
+  const score = useScoreBooking();
+  const worker = meta?.name ?? b.worker_id;
   const when = new Date(b.slot_datetime).toLocaleString("en-IN", { weekday: "short", hour: "numeric", minute: "2-digit" });
+  const scored = b.no_show_risk_score != null;
+  const band: RiskBand = scored ? (b.risk_band ?? bandOf(b.no_show_risk_score!)) : "low";
+  const color = BAND_COLOR[band];
+  const pct = scored ? Math.round(b.no_show_risk_score! * 100) : 0;
+  const factors: Factor[] = factorsFor(b, meta?.reliability ?? null);
+
   return (
-    <div className="rounded-2xl border bg-card p-4" style={{ borderColor: band === "high" ? color : "var(--border)", borderWidth: band === "high" ? 2 : 1 }}>
+    <div className="rounded-2xl border bg-card p-4" style={{ borderColor: band === "high" && scored ? color : "var(--border)", borderWidth: band === "high" && scored ? 2 : 1 }}>
       <div className="flex items-start justify-between">
         <div>
           <div className="text-sm font-semibold">{getService(b.service_category).displayName}</div>
           <div className="text-[11px] text-muted-foreground">{worker} · {when}</div>
         </div>
         <div className="text-right">
-          <div className="text-xl font-bold" style={{ color }}>{pct}%</div>
-          <div className="text-[10px] font-semibold" style={{ color }}>{BAND_LABEL[band]}</div>
+          {scored ? (
+            <>
+              <div className="text-xl font-bold" style={{ color }}>{pct}%</div>
+              <div className="text-[10px] font-semibold" style={{ color }}>{BAND_LABEL[band]}</div>
+            </>
+          ) : (
+            <button onClick={() => score.mutate(b.booking_id)} disabled={score.isPending} className="flex items-center gap-1 rounded-lg border border-border px-2 py-1 text-[10px] font-semibold">
+              {score.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />} Score now
+            </button>
+          )}
         </div>
       </div>
-      {/* mini risk meter */}
-      <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted">
-        <div className="h-full rounded-full" style={{ width: `${pct}%`, background: color }} />
-      </div>
-      <div className="mt-3 space-y-1">
-        {factors.map((f) => (
-          <div key={f.label} className="flex items-center gap-2 text-[11px] text-muted-foreground">
-            <span className="h-1.5 w-1.5 rounded-full" style={{ background: DOT[f.level] }} />
-            {f.label}
+
+      {scored && (
+        <>
+          <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted">
+            <div className="h-full rounded-full" style={{ width: `${pct}%`, background: color }} />
           </div>
-        ))}
-      </div>
-      {band === "high" && (
-        <div className="mt-3 flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-semibold" style={{ background: "color-mix(in oklab, var(--coral,#c0553f) 12%, transparent)", color }}>
-          <ShieldAlert className="h-3 w-3" /> Backup will be pre-arranged
-        </div>
+          <div className="mt-3 space-y-1">
+            {factors.map((f) => (
+              <div key={f.label} className="flex items-center gap-2 text-[11px] text-muted-foreground">
+                <span className="h-1.5 w-1.5 rounded-full" style={{ background: DOT[f.level] }} />
+                {f.label}
+              </div>
+            ))}
+          </div>
+        </>
       )}
+      {!scored && <p className="mt-2 text-[11px] text-muted-foreground">Booked before scoring was enabled — score it to see the risk.</p>}
+
+      {b.status === "replaced" ? (
+        <div className="mt-3 flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-semibold" style={{ background: "color-mix(in oklab, var(--teal) 12%, transparent)", color: "var(--teal)" }}>
+          <ShieldCheck className="h-3 w-3" /> Covered — backup dispatched
+        </div>
+      ) : backupName ? (
+        <div className="mt-3 flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-semibold" style={{ background: "color-mix(in oklab, var(--amber) 14%, transparent)", color: "var(--amber)" }}>
+          <ShieldCheck className="h-3 w-3" /> Backup on standby: {backupName}
+        </div>
+      ) : band === "high" && scored ? (
+        <div className="mt-3 flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-semibold" style={{ background: "color-mix(in oklab, var(--coral,#c0553f) 12%, transparent)", color }}>
+          <ShieldAlert className="h-3 w-3" /> Arrange a backup below
+        </div>
+      ) : null}
     </div>
   );
 }
 
-type Step = { icon: any; title: string; sub: string; when: string };
+/**
+ * The real escalation loop for the highest-risk booking. Every action here
+ * hits the database: arrange_backup reserves a genuine standby, and
+ * resolve_no_show either releases them (check-in) or promotes them (no-show).
+ */
+function EscalationPanel({ booking, names }: { booking: BookingRow; names: Record<string, WorkerMeta> }) {
+  const arrange = useArrangeBackup();
+  const resolve = useResolveNoShow();
 
-function EscalationDemo({ worker, pct }: { booking: BookingRow; worker: string; band: RiskBand; pct: number }) {
-  const backup = "Kavita R.";
-  const STEPS: Step[] = [
-    { icon: ShieldAlert, title: `Risk crosses 0.70 (${Math.max(pct, 72)}%)`, sub: `${worker} flagged high-risk during the 15-min re-score`, when: "~1h before slot" },
-    { icon: ShieldCheck, title: "Backup put on standby", sub: `${backup} reserved and notified — slot held`, when: "~1h before" },
-    { icon: BellRing, title: "Household pre-alerted", sub: `"We're watching your booking, ${backup} is ready"`, when: "~1h before" },
-    { icon: Clock, title: "Slot time — awaiting GPS check-in", sub: "Does the worker arrive and check in?", when: "at slot" },
-  ];
-
-  const [step, setStep] = useState(-1);   // -1 idle; 0..3 running; 4 resolved
-  const [playing, setPlaying] = useState(false);
-  const [outcome, setOutcome] = useState<null | "checkin" | "noshow">(null);
-
-  function play() {
-    setOutcome(null);
-    setPlaying(true);
-    setStep(0);
-    let i = 0;
-    const id = setInterval(() => {
-      i += 1;
-      if (i >= STEPS.length) { clearInterval(id); setPlaying(false); setStep(STEPS.length - 1); }
-      else setStep(i);
-    }, 900);
-  }
-  function reset() { setStep(-1); setPlaying(false); setOutcome(null); }
-
-  const atSlot = step >= STEPS.length - 1 && !playing;
+  const worker = names[booking.worker_id]?.name ?? "your worker";
+  const backupName = booking.backup_worker_id ? names[booking.backup_worker_id]?.name ?? booking.backup_worker_id : null;
+  const hasBackup = Boolean(booking.backup_worker_id);
+  const status = booking.status;
+  const checkedIn = status === "in_progress" && Boolean(booking.gps_checkin_time);
+  const replaced = status === "replaced";
+  const noBackupFree = arrange.isSuccess && arrange.data === null && !hasBackup;
 
   return (
     <div className="rounded-2xl border-2 p-5" style={{ borderColor: "var(--coral, #c0553f)", background: "color-mix(in oklab, var(--coral,#c0553f) 6%, var(--card))" }}>
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <ShieldAlert className="h-4 w-4" style={{ color: "var(--coral,#c0553f)" }} />
-          <h4 className="text-sm font-semibold">Auto-escalation — how Casai responds</h4>
-        </div>
-        {step === -1 ? (
-          <button onClick={play} className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold text-white" style={{ background: "var(--coral,#c0553f)" }}>
-            <Play className="h-3.5 w-3.5" /> Run the flow
-          </button>
-        ) : (
-          <button onClick={reset} className="flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-semibold">
-            <RotateCcw className="h-3.5 w-3.5" /> Reset
-          </button>
-        )}
+      <div className="flex items-center gap-2">
+        <ShieldAlert className="h-4 w-4" style={{ color: "var(--coral,#c0553f)" }} />
+        <h4 className="text-sm font-semibold">Auto-escalation — {getService(booking.service_category).displayName} with {worker}</h4>
       </div>
 
-      {step === -1 && (
-        <p className="mt-2 text-xs text-muted-foreground">
-          Press play to watch the pre-emptive escalation for the highest-risk booking — backup on standby before the slot, then resolved by GPS check-in.
-        </p>
-      )}
+      <ol className="mt-4 space-y-3 border-l-2 pl-4" style={{ borderColor: "color-mix(in oklab, var(--coral,#c0553f) 30%, var(--border))" }}>
+        <StepRow icon={ShieldAlert} done title="Booking scored" sub={booking.no_show_risk_score != null ? `${Math.round(booking.no_show_risk_score * 100)}% — ${BAND_LABEL[booking.risk_band ?? bandOf(booking.no_show_risk_score)]}` : "score it on the card above"} when="on booking" />
+        <StepRow icon={ShieldCheck} done={hasBackup || replaced} active={!hasBackup && !replaced && !checkedIn} title="Backup on standby" sub={hasBackup ? `${backupName} reserved — slot held` : replaced ? "was reserved and dispatched" : noBackupFree ? "no other worker is free at this slot" : "not arranged yet"} when="before slot" />
+        <StepRow icon={BellRing} done={hasBackup || replaced} title="Household covered" sub={hasBackup || replaced ? "you'd be pre-alerted a backup is ready" : "arranged once a backup is on standby"} when="before slot" />
+        <StepRow icon={Clock} done={checkedIn || replaced} active={hasBackup && !checkedIn && !replaced} title="At the slot" sub={checkedIn ? `${worker} checked in — backup released` : replaced ? `no check-in — ${backupName ?? "backup"} dispatched` : "awaiting GPS check-in"} when="at slot" />
+      </ol>
 
-      {step >= 0 && (
-        <ol className="mt-4 space-y-3 border-l-2 pl-4" style={{ borderColor: "color-mix(in oklab, var(--coral,#c0553f) 30%, var(--border))" }}>
-          {STEPS.map((s, i) => {
-            const done = i < step || (i === step && !playing) || i <= step;
-            const active = i === step;
-            const Icon = s.icon;
-            return (
-              <li key={i} className="relative">
-                <span className="absolute -left-[22px] top-1 flex h-4 w-4 items-center justify-center rounded-full" style={{ background: i <= step ? "var(--coral,#c0553f)" : "var(--muted)" }}>
-                  {i <= step && <Icon className="h-2.5 w-2.5 text-white" />}
-                </span>
-                <div className={"rounded-xl border p-3 transition " + (i <= step ? "" : "opacity-40")} style={{ borderColor: active ? "var(--coral,#c0553f)" : "var(--border)", background: "var(--card)" }}>
-                  <div className="flex items-center justify-between">
-                    <div className="text-sm font-medium">{s.title}</div>
-                    <span className="text-[10px] uppercase tracking-wider text-muted-foreground">{s.when}</span>
-                  </div>
-                  <div className="mt-0.5 text-xs text-muted-foreground">{s.sub}</div>
-                </div>
-              </li>
-            );
-          })}
-        </ol>
-      )}
-
-      {/* outcome branch — appears once we reach the slot */}
-      {atSlot && outcome === null && (
+      {/* Actions — the real loop */}
+      {!hasBackup && !replaced && !checkedIn && (
         <div className="mt-4">
-          <div className="mb-2 text-xs font-semibold text-muted-foreground">At the slot — what happens?</div>
+          <button onClick={() => arrange.mutate(booking.booking_id)} disabled={arrange.isPending} className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold text-white disabled:opacity-60" style={{ background: "var(--coral,#c0553f)" }}>
+            {arrange.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ShieldCheck className="h-3.5 w-3.5" />} Arrange backup now
+          </button>
+          {noBackupFree && <p className="mt-2 text-[11px] font-semibold" style={{ color: "var(--coral,#c0553f)" }}>No other {getService(booking.service_category).displayName.toLowerCase()} is free at this slot — try a different time.</p>}
+        </div>
+      )}
+
+      {hasBackup && !checkedIn && !replaced && (
+        <div className="mt-4">
+          <div className="mb-2 text-xs font-semibold text-muted-foreground">{backupName} is on standby. At the slot — what happens?</div>
           <div className="grid grid-cols-2 gap-2">
-            <button onClick={() => setOutcome("checkin")} className="flex items-center justify-center gap-2 rounded-xl border py-2.5 text-xs font-semibold" style={{ borderColor: "var(--teal)", color: "var(--teal)" }}>
-              <UserCheck className="h-4 w-4" /> Worker checks in
+            <button onClick={() => resolve.mutate({ bookingId: booking.booking_id, checkedIn: true })} disabled={resolve.isPending} className="flex items-center justify-center gap-2 rounded-xl border py-2.5 text-xs font-semibold disabled:opacity-60" style={{ borderColor: "var(--teal)", color: "var(--teal)" }}>
+              {resolve.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserCheck className="h-4 w-4" />} Worker checks in
             </button>
-            <button onClick={() => setOutcome("noshow")} className="flex items-center justify-center gap-2 rounded-xl border py-2.5 text-xs font-semibold" style={{ borderColor: "var(--coral,#c0553f)", color: "var(--coral,#c0553f)" }}>
-              <XCircle className="h-4 w-4" /> No check-in
+            <button onClick={() => resolve.mutate({ bookingId: booking.booking_id, checkedIn: false })} disabled={resolve.isPending} className="flex items-center justify-center gap-2 rounded-xl border py-2.5 text-xs font-semibold disabled:opacity-60" style={{ borderColor: "var(--coral,#c0553f)", color: "var(--coral,#c0553f)" }}>
+              {resolve.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <XCircle className="h-4 w-4" />} No check-in
             </button>
           </div>
         </div>
       )}
 
-      {atSlot && outcome === "checkin" && (
+      {checkedIn && (
         <Outcome color="var(--teal)" icon={CheckCircle2} title="All clear — false alarm, cheaply">
-          {worker} checked in on time. {backup} is released from standby, the SLA timer disarms, and the household is told “{worker} has arrived.” No disruption, no cost beyond a heads-up.
+          {worker} checked in on time, so the standby was released and the slot is proceeding normally. The backup cost nothing but a heads-up.
         </Outcome>
       )}
-      {atSlot && outcome === "noshow" && (
-        <Outcome color="var(--coral,#c0553f)" icon={ShieldCheck} title={`No-show prevented — ${backup} dispatched`}>
-          No GPS check-in by the deadline, so {backup} — already on standby — is dispatched immediately. The booking flips to “replaced,” and the household is covered often before they'd have noticed. This is why the backup was arranged early.
+      {replaced && (
+        <Outcome color="var(--coral,#c0553f)" icon={ShieldCheck} title={`No-show prevented — ${backupName ?? "backup"} dispatched`}>
+          No check-in by the deadline, so the standby was promoted into the slot. The booking now reads “replaced” and shows the backup as the assigned worker — the household is covered.
         </Outcome>
       )}
 
       <p className="mt-4 text-[11px] text-muted-foreground opacity-70">
-        Front-end walkthrough of the intended flow. The live version runs as a background job every 15 minutes and needs the notification + backup-dispatch services (deferred).
+        These actions are real — they write to the database. In production the score refreshes on a 15-minute job and the backup is arranged automatically when risk crosses the threshold; here you trigger those steps. Notifications (push/SMS) are the remaining deferred piece.
       </p>
     </div>
+  );
+}
+
+function StepRow({ icon: Icon, done, active, title, sub, when }: { icon: any; done?: boolean; active?: boolean; title: string; sub: string; when: string }) {
+  const on = done || active;
+  return (
+    <li className="relative">
+      <span className="absolute -left-[22px] top-1 flex h-4 w-4 items-center justify-center rounded-full" style={{ background: on ? "var(--coral,#c0553f)" : "var(--muted)" }}>
+        {on && <Icon className="h-2.5 w-2.5 text-white" />}
+      </span>
+      <div className={"rounded-xl border p-3 transition " + (on ? "" : "opacity-40")} style={{ borderColor: active ? "var(--coral,#c0553f)" : "var(--border)", background: "var(--card)" }}>
+        <div className="flex items-center justify-between">
+          <div className="text-sm font-medium">{title}</div>
+          <span className="text-[10px] uppercase tracking-wider text-muted-foreground">{when}</span>
+        </div>
+        <div className="mt-0.5 text-xs text-muted-foreground">{sub}</div>
+      </div>
+    </li>
   );
 }
 

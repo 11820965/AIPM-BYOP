@@ -90,7 +90,14 @@ export type BookingRow = {
   notes: string | null;
   payment_method: PaymentMethod;
   created_at: string;
+  // No-show engine (0012). Scored at insert; escalation reserves a backup.
+  no_show_risk_score: number | null;
+  risk_band: RiskBand | null;
+  backup_worker_id: string | null;
+  risk_scored_at: string | null;
 };
+
+export type RiskBand = "low" | "med" | "high";
 
 // Shaped to satisfy supabase-js's GenericSchema so insert/update payloads
 // type-check (each table needs Row/Insert/Update/Relationships; the schema
@@ -149,6 +156,9 @@ export type Database = {
       become_ops: { Args: { p_passcode: string }; Returns: boolean };
       verify_worker: { Args: { p_worker_id: string }; Returns: undefined };
       available_workers: { Args: { p_category: ServiceCategory; p_slot: string }; Returns: (WorkerPublic & { available: boolean })[] };
+      score_booking: { Args: { p_booking_id: string }; Returns: number };
+      arrange_backup: { Args: { p_booking_id: string }; Returns: string | null };
+      resolve_no_show: { Args: { p_booking_id: string; p_checked_in: boolean }; Returns: BookingStatus };
     };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;
