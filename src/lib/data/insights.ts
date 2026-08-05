@@ -132,6 +132,25 @@ export function useArrangeBackup() {
   });
 }
 
+/**
+ * Run the pre-slot checkpoint on a booking (the T-45 timeout, triggered
+ * here by hand since the prototype has no cron). If the worker never
+ * answered and the cutoff has passed, it expires the booking and arms a
+ * backup; otherwise it returns the current confirmation status unchanged.
+ */
+export function useRunCheckpoint() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (bookingId: string): Promise<string> => {
+      if (!supabase) throw new Error("Supabase is not configured.");
+      const { data, error } = await supabase.rpc("run_confirm_checkpoint", { p_booking_id: bookingId });
+      if (error) throw error;
+      return data as string;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["insights"] }),
+  });
+}
+
 /** Resolve the slot: checked-in releases the backup; a no-show promotes it. */
 export function useResolveNoShow() {
   const qc = useQueryClient();

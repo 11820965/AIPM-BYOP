@@ -95,9 +95,13 @@ export type BookingRow = {
   risk_band: RiskBand | null;
   backup_worker_id: string | null;
   risk_scored_at: string | null;
+  // Pre-slot confirmation checkpoint (0013).
+  confirm_status: ConfirmStatus;
+  confirm_responded_at: string | null;
 };
 
 export type RiskBand = "low" | "med" | "high";
+export type ConfirmStatus = "pending" | "confirmed" | "declined" | "expired";
 
 // Shaped to satisfy supabase-js's GenericSchema so insert/update payloads
 // type-check (each table needs Row/Insert/Update/Relationships; the schema
@@ -159,6 +163,8 @@ export type Database = {
       score_booking: { Args: { p_booking_id: string }; Returns: number };
       arrange_backup: { Args: { p_booking_id: string }; Returns: string | null };
       resolve_no_show: { Args: { p_booking_id: string; p_checked_in: boolean }; Returns: BookingStatus };
+      confirm_booking: { Args: { p_booking_id: string; p_coming: boolean }; Returns: ConfirmStatus };
+      run_confirm_checkpoint: { Args: { p_booking_id: string }; Returns: ConfirmStatus };
     };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;

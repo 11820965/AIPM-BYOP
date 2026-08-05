@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase/client";
-import type { WorkerRow, BookingRow, ServiceCategory } from "@/lib/supabase/database.types";
+import type { WorkerRow, BookingRow, ServiceCategory, ConfirmStatus } from "@/lib/supabase/database.types";
 
 /**
  * The worker's view of their OWN data (worker context, P1/P2).
@@ -42,6 +42,27 @@ export function useMyWorkerBookings() {
       if (error) throw error;
       return (data ?? []) as BookingRow[];
     },
+  });
+}
+
+/**
+ * The worker's answer to the pre-slot "are you coming?" checkpoint. A
+ * decline arms a backup on the server immediately (confirm_booking), so an
+ * honest early out costs the household nothing.
+ */
+export function useConfirmBooking() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: { bookingId: string; coming: boolean }): Promise<ConfirmStatus> => {
+      if (!supabase) throw new Error("Supabase is not configured.");
+      const { data, error } = await supabase.rpc("confirm_booking", {
+        p_booking_id: input.bookingId,
+        p_coming: input.coming,
+      });
+      if (error) throw error;
+      return data as ConfirmStatus;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["worker", "bookings"] }),
   });
 }
 

@@ -3,9 +3,10 @@ import { AppShell } from "@/components/layout/AppShell";
 import { useMemo } from "react";
 import { Mic, ShieldAlert, ShieldCheck, Clock, UserCheck, BellRing, Loader2, CheckCircle2, XCircle, RefreshCw } from "lucide-react";
 import {
-  useUpcomingBookings, useWorkerMeta, useScoreBooking, useArrangeBackup, useResolveNoShow,
+  useUpcomingBookings, useWorkerMeta, useScoreBooking, useArrangeBackup, useResolveNoShow, useRunCheckpoint,
   bandOf, factorsFor, BAND_LABEL, type RiskBand, type Factor, type BookingRow, type WorkerMeta,
 } from "@/lib/data/insights";
+import type { ConfirmStatus } from "@/lib/supabase/database.types";
 import { getService } from "@/lib/catalog/catalog";
 import { isSupabaseConfigured } from "@/lib/supabase/client";
 
@@ -161,6 +162,7 @@ function RiskCard({ b, meta, backupName }: { b: BookingRow; meta?: WorkerMeta; b
 function EscalationPanel({ booking, names }: { booking: BookingRow; names: Record<string, WorkerMeta> }) {
   const arrange = useArrangeBackup();
   const resolve = useResolveNoShow();
+  const checkpoint = useRunCheckpoint();
 
   const worker = names[booking.worker_id]?.name ?? "your worker";
   const backupName = booking.backup_worker_id ? names[booking.backup_worker_id]?.name ?? booking.backup_worker_id : null;
@@ -183,6 +185,21 @@ function EscalationPanel({ booking, names }: { booking: BookingRow; names: Recor
         <StepRow icon={BellRing} done={hasBackup || replaced} title="Household covered" sub={hasBackup || replaced ? "you'd be pre-alerted a backup is ready" : "arranged once a backup is on standby"} when="before slot" />
         <StepRow icon={Clock} done={checkedIn || replaced} active={hasBackup && !checkedIn && !replaced} title="At the slot" sub={checkedIn ? `${worker} checked in — backup released` : replaced ? `no check-in — ${backupName ?? "backup"} dispatched` : "awaiting GPS check-in"} when="at slot" />
       </ol>
+
+      {/* Pre-slot confirmation checkpoint */}
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border bg-card p-3">
+        <div className="text-xs">
+          <span className="font-semibold">Worker confirmation</span>
+          <span className="mx-1 text-muted-foreground">·</span>
+          <ConfirmLine status={booking.confirm_status ?? "pending"} backupName={backupName} />
+        </div>
+        {booking.confirm_status === "pending" && !replaced && !checkedIn && (
+          <button onClick={() => checkpoint.mutate(booking.booking_id)} disabled={checkpoint.isPending}
+            className="flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-semibold disabled:opacity-60">
+            {checkpoint.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Clock className="h-3.5 w-3.5" />} Run T-45 checkpoint
+          </button>
+        )}
+      </div>
 
       {/* Actions — the real loop */}
       {!hasBackup && !replaced && !checkedIn && (
@@ -253,6 +270,18 @@ function Outcome({ color, icon: Icon, title, children }: { color: string; icon: 
       <p className="mt-1 text-xs text-muted-foreground">{children}</p>
     </div>
   );
+}
+
+function ConfirmLine({ status, backupName }: { status: ConfirmStatus; backupName?: string | null }) {
+  const armed = backupName ? ` — ${backupName} on standby` : " — arranging a backup";
+  const map: Record<ConfirmStatus, { text: string; color: string }> = {
+    pending: { text: "waiting on the worker to confirm they're coming", color: "var(--muted-foreground)" },
+    confirmed: { text: "worker confirmed — on their way", color: "var(--teal)" },
+    declined: { text: `worker declined early${armed}`, color: "var(--coral, #c0553f)" },
+    expired: { text: `no answer by the cutoff${armed}`, color: "var(--amber)" },
+  };
+  const { text, color } = map[status] ?? map.pending;
+  return <span style={{ color, fontWeight: 600 }}>{text}</span>;
 }
 
 function Note({ children, tone }: { children: React.ReactNode; tone?: "error" }) {
