@@ -1,8 +1,9 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { AppShell } from "@/components/layout/AppShell";
-import { CheckCircle2, MapPin, Clock, Phone, MessageCircle, Shield, X, Home, Calendar } from "lucide-react";
+import { CheckCircle2, MapPin, Clock, Phone, MessageCircle, Shield, X, Home, Calendar, BookOpen, Sparkles, Loader2 } from "lucide-react";
 import { useBooking } from "@/lib/data/bookings";
 import { useWorker } from "@/lib/data/workers";
+import { useBookingBrief, briefHasContent, useComposedBrief } from "@/lib/data/continuity";
 import { getService, formatMoney } from "@/lib/catalog/catalog";
 import type { BookingStatus } from "@/lib/supabase/database.types";
 
@@ -119,6 +120,8 @@ function BookingPage() {
           </div>
         )}
 
+        {!cancelled && <WorkerBriefPreview bookingId={booking.booking_id} workerName={workerName} />}
+
         <div className="flex gap-3">
           <button onClick={() => nav({ to: "/app" })} className="flex-1 rounded-xl border border-border py-3 text-sm font-semibold">
             <Home className="mr-2 inline h-4 w-4" /> Home
@@ -130,6 +133,72 @@ function BookingPage() {
         </div>
       </div>
     </AppShell>
+  );
+}
+
+/**
+ * Continuity Memory — the household's preview of the exact "before you
+ * arrive" brief their worker (or a backup) will see. The household owns the
+ * booking, so booking_home_brief() returns it to them too. Shows the
+ * Claude-written v1 prose when a key is set, else the rule-based v0 fields.
+ */
+function WorkerBriefPreview({ bookingId, workerName }: { bookingId: string; workerName: string }) {
+  const { data: brief } = useBookingBrief(bookingId);
+  const { data: ai, isLoading: aiLoading } = useComposedBrief(brief);
+  const hasContent = briefHasContent(brief);
+  const prose = ai?.prose ?? null;
+
+  const fields: [string, string | null | undefined][] = [
+    ["Getting in", brief?.access],
+    ["Food & kitchen", brief?.dietary],
+    ["Routines", brief?.routines],
+    ["How they like things", brief?.preferences],
+    ["Notes", brief?.notes],
+    ["For this visit", brief?.booking_notes],
+  ];
+
+  return (
+    <div className="rounded-2xl border p-5" style={{ borderColor: "color-mix(in oklab, var(--teal) 45%, var(--border))", background: "color-mix(in oklab, var(--teal) 7%, var(--card))" }}>
+      <div className="flex items-center gap-2">
+        <BookOpen className="h-4 w-4" style={{ color: "var(--teal)" }} />
+        <h3 className="text-sm font-semibold">Before {workerName} arrives — the brief they'll see</h3>
+      </div>
+
+      {!hasContent ? (
+        <p className="mt-2 text-sm text-muted-foreground">
+          You haven't added your home details yet.{" "}
+          <Link to="/app/home" className="font-semibold" style={{ color: "var(--teal)" }}>Fill in My home</Link>{" "}
+          so whoever comes — {workerName} or a backup — arrives already knowing your home.
+        </p>
+      ) : aiLoading ? (
+        <div className="mt-3 flex items-center gap-2 text-xs text-muted-foreground"><Loader2 className="h-3.5 w-3.5 animate-spin" /> Preparing the brief…</div>
+      ) : prose ? (
+        <div className="mt-3 space-y-1.5 text-sm">
+          {prose.split("\n").map((line, i) => {
+            const t = line.replace(/^[-•]\s*/, "").trim();
+            if (!t) return null;
+            return <div key={i} className="flex gap-2"><span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: "var(--teal)" }} /><span>{t}</span></div>;
+          })}
+        </div>
+      ) : (
+        <div className="mt-3 space-y-2.5 text-sm">
+          {fields.filter(([, v]) => v).map(([k, v]) => (
+            <div key={k}>
+              <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">{k}</div>
+              <div>{v}</div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {hasContent && (
+        <p className="mt-3 flex items-center gap-1 text-[10px] text-muted-foreground opacity-70">
+          {prose
+            ? <><Sparkles className="h-3 w-3" /> AI brief · written by Claude from your notes</>
+            : <>Rule-based brief (v0) · set ANTHROPIC_API_KEY for the Claude-written version</>}
+        </p>
+      )}
+    </div>
   );
 }
 
