@@ -182,6 +182,7 @@ export type Database = {
       become_worker: { Args: { p_name: string; p_category: ServiceCategory; p_zone: string }; Returns: string };
       become_guest_worker: { Args: Record<string, never>; Returns: string };
       become_guest_nri: { Args: Record<string, never>; Returns: string };
+      become_guest: { Args: { p_passcode: string }; Returns: UserRole };
       become_ops: { Args: { p_passcode: string }; Returns: boolean };
       verify_worker: { Args: { p_worker_id: string }; Returns: undefined };
       available_workers: { Args: { p_category: ServiceCategory; p_slot: string }; Returns: (WorkerPublic & { available: boolean })[] };

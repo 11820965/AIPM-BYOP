@@ -123,30 +123,34 @@ export async function signInAsGuest(): Promise<void> {
 }
 
 /**
- * Guest WORKER (demo). Anonymous sign-in, then become_guest_worker elevates
- * the role to a verified worker with a sample booking + home brief — so the
- * worker experience is explorable in one tap, skipping onboarding + ops
- * verification. A demo shortcut; the real path is register → ops verify.
+ * Guest passcodes (demo). One guest entry, three passcodes — mirrors the
+ * admin passcode. These are shown on the gate screen; they are not secrets,
+ * just a way to pick which experience to demo. The server (become_guest)
+ * re-validates and does the role elevation.
  */
-export async function signInAsGuestWorker(): Promise<void> {
-  if (!supabase) throw new Error("Supabase is not configured.");
-  const { error } = await supabase.auth.signInAnonymously();
-  if (error) throw error;
-  const { error: elevateErr } = await supabase.rpc("become_guest_worker");
-  if (elevateErr) throw elevateErr;
-}
+export const GUEST_PASSCODES: Record<string, { role: Context; label: string }> = {
+  "casai-home-2026": { role: "household", label: "Household" },
+  "casai-worker-2026": { role: "worker", label: "Worker" },
+  "casai-nri-2026": { role: "nri", label: "NRI" },
+};
 
 /**
- * Guest NRI (demo). Anonymous sign-in, then become_guest_nri elevates the
- * role to nri and links a home (with bookings) to monitor — skipping the
- * consent-code flow. A demo shortcut; the real path is consent-code linking.
+ * Enter as a guest with a passcode. Signs in anonymously (a fresh guest),
+ * then become_guest elevates to the passcode's context and seeds a coherent
+ * demo state (verified worker + sample booking, or an NRI linked to a home).
+ * Returns the role so the caller can route.
  */
-export async function signInAsGuestNri(): Promise<void> {
+export async function enterAsGuest(passcode: string): Promise<Context> {
   if (!supabase) throw new Error("Supabase is not configured.");
-  const { error } = await supabase.auth.signInAnonymously();
+  const code = passcode.trim();
+  const match = GUEST_PASSCODES[code];
+  if (!match) throw new Error("That passcode isn't recognised.");
+
+  const { error: signErr } = await supabase.auth.signInAnonymously();
+  if (signErr) throw signErr;
+  const { error } = await supabase.rpc("become_guest", { p_passcode: code });
   if (error) throw error;
-  const { error: elevateErr } = await supabase.rpc("become_guest_nri");
-  if (elevateErr) throw elevateErr;
+  return match.role;
 }
 
 /** Landing route for a context, used after sign-in. */

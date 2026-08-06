@@ -24,6 +24,7 @@ for (const f of [
   "supabase/migrations/0013_worker_confirmation.sql",
   "supabase/migrations/0014_continuity_memory.sql",
   "supabase/migrations/0015_guest_access.sql",
+  "supabase/migrations/0016_guest_passcodes.sql",
 ]) {
   await db.exec(await readFile(join(ROOT, f), "utf8"));
 }
@@ -79,5 +80,32 @@ test("the guest NRI can see the seeded bookings for their linked home", async ()
     // home is one they're linked to.
     const { rows } = await db.query(`select count(*)::int c from booking where household_id = $1`, [id.otherHousehold]);
     assert.equal(rows[0].c, 2, "the NRI should have two bookings to monitor");
+  });
+});
+
+test("become_guest routes each passcode to the right role", async () => {
+  await asUser(db, id.priya, async () => {
+    const { rows } = await db.query(`select become_guest('casai-worker-2026') as role`);
+    assert.equal(rows[0].role, "worker");
+    const { rows: p } = await db.query(`select role from profile where id = $1`, [id.priya]);
+    assert.equal(p[0].role, "worker");
+  });
+  await asUser(db, id.other, async () => {
+    const { rows } = await db.query(`select become_guest('casai-nri-2026') as role`);
+    assert.equal(rows[0].role, "nri");
+  });
+  await asUser(db, id.priya, async () => {
+    const { rows } = await db.query(`select become_guest('casai-home-2026') as role`);
+    assert.equal(rows[0].role, "household");
+  });
+});
+
+test("become_guest rejects an unknown passcode", async () => {
+  await asUser(db, id.priya, async () => {
+    await assert.rejects(
+      db.query(`select become_guest('nope')`),
+      /invalid guest passcode/i,
+      "an unknown passcode was accepted",
+    );
   });
 });

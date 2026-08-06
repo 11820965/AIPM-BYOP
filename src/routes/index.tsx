@@ -2,7 +2,6 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { Home, User, Globe2, ArrowRight, ChefHat, Sparkles, Car, HeartPulse, UserRound, ShieldCheck, Loader2 } from "lucide-react";
 import { useViewport } from "@/lib/app/state";
 import { useEffect, useState } from "react";
-import { signInAsGuest, signInAsGuestWorker, signInAsGuestNri } from "@/lib/auth/session";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -66,61 +65,37 @@ function TrustCarousel() {
 }
 
 /**
- * Quick entry below the sign-in line: jump straight into any context as a
- * guest — household, worker or NRI — or into the Ops console as an admin. No
- * email, no onboarding: guests use anonymous sign-in and the become_guest_*
- * functions elevate the role server-side (demo shortcuts). Admin routes to
- * the /ops passcode gate.
+ * Quick entry below the sign-in line: a single guest entry that opens the
+ * passcode gate (household / worker / NRI passcodes), and the admin gate.
+ * Both mirror each other — a passcode picks the experience. No email needed.
  */
 function QuickAccess() {
   const nav = useNavigate();
-  const [busy, setBusy] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  async function jump(key: string, signIn: () => Promise<void>, dest: string) {
-    setBusy(key);
-    setError(null);
-    try {
-      await signIn();
-      nav({ to: dest });
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Couldn't sign in.");
-      setBusy(null);
-    }
-  }
-
-  const entries = [
-    { key: "household", label: "Guest household", icon: UserRound, color: "var(--teal)", run: () => jump("household", signInAsGuest, "/app") },
-    { key: "worker", label: "Guest worker", icon: User, color: "var(--purple)", run: () => jump("worker", signInAsGuestWorker, "/worker") },
-    { key: "nri", label: "Guest NRI", icon: Globe2, color: "var(--amber)", run: () => jump("nri", signInAsGuestNri, "/nri") },
-    { key: "admin", label: "Admin", icon: ShieldCheck, color: "var(--coral, #c0553f)", run: () => nav({ to: "/ops" }) },
-  ];
-
   return (
     <div className="space-y-2">
       <div className="flex items-center gap-3 py-1 text-[11px] uppercase tracking-wider text-muted-foreground">
-        <span className="h-px flex-1 bg-border" /> or jump in as a guest <span className="h-px flex-1 bg-border" />
+        <span className="h-px flex-1 bg-border" /> or jump in <span className="h-px flex-1 bg-border" />
       </div>
       <div className="grid grid-cols-2 gap-2">
-        {entries.map((e) => {
-          const Icon = e.icon;
-          const isBusy = busy === e.key;
-          return (
-            <button
-              key={e.key}
-              onClick={e.run}
-              disabled={busy !== null}
-              className="flex h-11 items-center justify-center gap-2 rounded-xl border text-sm font-semibold transition hover:bg-accent disabled:opacity-50"
-              style={{ borderColor: e.color, color: e.color }}
-            >
-              {isBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Icon className="h-4 w-4" />}
-              {e.label}
-            </button>
-          );
-        })}
+        <button
+          onClick={() => nav({ to: "/guest" })}
+          className="flex h-11 items-center justify-center gap-2 rounded-xl text-sm font-semibold text-white transition hover:opacity-90"
+          style={{ background: "var(--teal)" }}
+        >
+          <UserRound className="h-4 w-4" /> Guest user
+        </button>
+        <button
+          onClick={() => nav({ to: "/ops" })}
+          className="flex h-11 items-center justify-center gap-2 rounded-xl border text-sm font-semibold transition hover:bg-accent"
+          style={{ borderColor: "var(--coral, #c0553f)", color: "var(--coral, #c0553f)" }}
+        >
+          <ShieldCheck className="h-4 w-4" /> Admin
+        </button>
       </div>
-      <p className="text-center text-[11px] text-muted-foreground">No email, no onboarding — explore each experience instantly.</p>
-      {error && <p className="text-center text-[11px]" style={{ color: "var(--coral, #ff7a7a)" }}>{error}</p>}
+      <div className="flex justify-between text-[11px] text-muted-foreground">
+        <span>Passcode: household · worker · NRI</span>
+        <span>Verify workers</span>
+      </div>
     </div>
   );
 }
