@@ -122,6 +122,33 @@ export async function signInAsGuest(): Promise<void> {
   if (error) throw error;
 }
 
+/**
+ * Guest WORKER (demo). Anonymous sign-in, then become_guest_worker elevates
+ * the role to a verified worker with a sample booking + home brief — so the
+ * worker experience is explorable in one tap, skipping onboarding + ops
+ * verification. A demo shortcut; the real path is register → ops verify.
+ */
+export async function signInAsGuestWorker(): Promise<void> {
+  if (!supabase) throw new Error("Supabase is not configured.");
+  const { error } = await supabase.auth.signInAnonymously();
+  if (error) throw error;
+  const { error: elevateErr } = await supabase.rpc("become_guest_worker");
+  if (elevateErr) throw elevateErr;
+}
+
+/**
+ * Guest NRI (demo). Anonymous sign-in, then become_guest_nri elevates the
+ * role to nri and links a home (with bookings) to monitor — skipping the
+ * consent-code flow. A demo shortcut; the real path is consent-code linking.
+ */
+export async function signInAsGuestNri(): Promise<void> {
+  if (!supabase) throw new Error("Supabase is not configured.");
+  const { error } = await supabase.auth.signInAnonymously();
+  if (error) throw error;
+  const { error: elevateErr } = await supabase.rpc("become_guest_nri");
+  if (elevateErr) throw elevateErr;
+}
+
 /** Landing route for a context, used after sign-in. */
 export function homeForRole(role: Context): string {
   switch (role) {
