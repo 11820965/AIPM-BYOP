@@ -117,13 +117,15 @@ function WorkerBookings() {
 /**
  * "Before you arrive — this home." Continuity Memory (0014): the brief the
  * assigned worker (or a promoted backup) sees for a booking, so a swap-in
- * arrives already knowing the home. Renders nothing until there's content.
+ * arrives already knowing the home. Shows an empty-state line when the
+ * household hasn't filled their home profile yet.
  */
 function HomeBriefCard({ bookingId }: { bookingId: string }) {
   const { data: brief } = useBookingBrief(bookingId);
   const { data: ai, isLoading: aiLoading } = useComposedBrief(brief);
-  if (!briefHasContent(brief) || !brief) return null;
+  if (!brief) return null; // still loading or not authorised
 
+  const hasContent = briefHasContent(brief);
   const prose = ai?.prose ?? null;
   const rows: { icon: any; label: string; value: string | null }[] = [
     { icon: Utensils, label: "Food & kitchen", value: brief.dietary },
@@ -141,13 +143,15 @@ function HomeBriefCard({ bookingId }: { bookingId: string }) {
         <h4 className="text-sm font-semibold">Before you arrive — {brief.household_name}'s home</h4>
       </div>
 
-      {aiLoading && (
+      {!hasContent ? (
+        <p className="mt-2 text-xs text-muted-foreground">
+          This household hasn't shared any home notes yet. Gate code, dietary rules and routines will appear here once they fill in their home profile.
+        </p>
+      ) : aiLoading ? (
         <div className="mt-3 flex items-center gap-2 text-xs text-muted-foreground">
           <Loader2 className="h-3.5 w-3.5 animate-spin" /> Preparing your brief…
         </div>
-      )}
-
-      {!aiLoading && prose ? (
+      ) : prose ? (
         // v1 — Claude-composed brief
         <div className="mt-3 space-y-1.5 text-sm">
           {prose.split("\n").map((line, i) => {
@@ -163,27 +167,27 @@ function HomeBriefCard({ bookingId }: { bookingId: string }) {
         </div>
       ) : (
         // v0 fallback — the structured fields, surfaced as-is
-        !aiLoading && (
-          <div className="mt-3 space-y-2.5">
-            {rows.map((r, i) => {
-              const Icon = r.icon;
-              return (
-                <div key={i} className="flex gap-2.5">
-                  <Icon className="mt-0.5 h-3.5 w-3.5 shrink-0" style={{ color: "var(--teal)" }} />
-                  <div>
-                    <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">{r.label}</div>
-                    <div className="text-sm">{r.value}</div>
-                  </div>
+        <div className="mt-3 space-y-2.5">
+          {rows.map((r, i) => {
+            const Icon = r.icon;
+            return (
+              <div key={i} className="flex gap-2.5">
+                <Icon className="mt-0.5 h-3.5 w-3.5 shrink-0" style={{ color: "var(--teal)" }} />
+                <div>
+                  <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">{r.label}</div>
+                  <div className="text-sm">{r.value}</div>
                 </div>
-              );
-            })}
-          </div>
-        )
+              </div>
+            );
+          })}
+        </div>
       )}
 
-      <p className="mt-3 flex items-center gap-1 text-[10px] text-muted-foreground opacity-70">
-        {prose ? <><Sparkles className="h-3 w-3" /> AI brief · written by Claude from the household's notes</> : <>Shared by the household so whoever comes knows the home · rule-based brief (v0)</>}
-      </p>
+      {hasContent && (
+        <p className="mt-3 flex items-center gap-1 text-[10px] text-muted-foreground opacity-70">
+          {prose ? <><Sparkles className="h-3 w-3" /> AI brief · written by Claude from the household's notes</> : <>Shared by the household so whoever comes knows the home · rule-based brief (v0)</>}
+        </p>
+      )}
     </div>
   );
 }
