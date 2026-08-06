@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase/client";
 import type { HouseholdPreferencesRow, HomeBrief } from "@/lib/supabase/database.types";
+import { composeHomeBrief, type BriefProse } from "@/lib/data/brief-ai";
 
 /**
  * Continuity Memory v0 (0014).
@@ -85,4 +86,26 @@ export function useBookingBrief(bookingId: string | undefined) {
 export function briefHasContent(b: HomeBrief | null | undefined): boolean {
   if (!b) return false;
   return Boolean(b.dietary || b.access || b.routines || b.preferences || b.notes || b.booking_notes);
+}
+
+/**
+ * Continuity Memory v1 — a natural-language brief composed by Claude from the
+ * structured fields (server-side, via composeHomeBrief). Returns
+ * { prose: null } when no API key is configured, so the caller falls back to
+ * the v0 structured card. Keyed on the brief content so it re-composes only
+ * when the home's context actually changes.
+ */
+export function useComposedBrief(brief: HomeBrief | null | undefined) {
+  const key = brief
+    ? [brief.household_name, brief.access, brief.dietary, brief.routines, brief.preferences, brief.notes, brief.booking_notes].join("¦")
+    : "";
+  return useQuery({
+    queryKey: ["home-brief-ai", key],
+    enabled: briefHasContent(brief),
+    staleTime: 60 * 60 * 1000, // an hour — the brief is stable per home
+    queryFn: async (): Promise<BriefProse> => {
+      if (!brief) return { prose: null, source: "template" };
+      return composeHomeBrief({ data: brief });
+    },
+  });
 }

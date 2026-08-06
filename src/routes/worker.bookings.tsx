@@ -1,9 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { AppShell } from "@/components/layout/AppShell";
 import { useState } from "react";
-import { MapPin, Clock, BookOpen, Utensils, KeyRound, ListChecks, StickyNote } from "lucide-react";
+import { MapPin, Clock, BookOpen, Utensils, KeyRound, ListChecks, StickyNote, Sparkles, Loader2 } from "lucide-react";
 import { useMyWorkerBookings } from "@/lib/data/worker-self";
-import { useBookingBrief, briefHasContent } from "@/lib/data/continuity";
+import { useBookingBrief, briefHasContent, useComposedBrief } from "@/lib/data/continuity";
 import { getService, formatMoney } from "@/lib/catalog/catalog";
 import { isSupabaseConfigured } from "@/lib/supabase/client";
 import type { BookingRow } from "@/lib/supabase/database.types";
@@ -121,8 +121,10 @@ function WorkerBookings() {
  */
 function HomeBriefCard({ bookingId }: { bookingId: string }) {
   const { data: brief } = useBookingBrief(bookingId);
+  const { data: ai, isLoading: aiLoading } = useComposedBrief(brief);
   if (!briefHasContent(brief) || !brief) return null;
 
+  const prose = ai?.prose ?? null;
   const rows: { icon: any; label: string; value: string | null }[] = [
     { icon: Utensils, label: "Food & kitchen", value: brief.dietary },
     { icon: KeyRound, label: "Getting in", value: brief.access },
@@ -138,21 +140,50 @@ function HomeBriefCard({ bookingId }: { bookingId: string }) {
         <BookOpen className="h-4 w-4" style={{ color: "var(--teal)" }} />
         <h4 className="text-sm font-semibold">Before you arrive — {brief.household_name}'s home</h4>
       </div>
-      <div className="mt-3 space-y-2.5">
-        {rows.map((r, i) => {
-          const Icon = r.icon;
-          return (
-            <div key={i} className="flex gap-2.5">
-              <Icon className="mt-0.5 h-3.5 w-3.5 shrink-0" style={{ color: "var(--teal)" }} />
-              <div>
-                <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">{r.label}</div>
-                <div className="text-sm">{r.value}</div>
+
+      {aiLoading && (
+        <div className="mt-3 flex items-center gap-2 text-xs text-muted-foreground">
+          <Loader2 className="h-3.5 w-3.5 animate-spin" /> Preparing your brief…
+        </div>
+      )}
+
+      {!aiLoading && prose ? (
+        // v1 — Claude-composed brief
+        <div className="mt-3 space-y-1.5 text-sm">
+          {prose.split("\n").map((line, i) => {
+            const t = line.replace(/^[-•]\s*/, "").trim();
+            if (!t) return null;
+            return (
+              <div key={i} className="flex gap-2">
+                <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: "var(--teal)" }} />
+                <span>{t}</span>
               </div>
-            </div>
-          );
-        })}
-      </div>
-      <p className="mt-3 text-[10px] text-muted-foreground opacity-70">Shared by the household so whoever comes knows the home. Rule-based brief (v0).</p>
+            );
+          })}
+        </div>
+      ) : (
+        // v0 fallback — the structured fields, surfaced as-is
+        !aiLoading && (
+          <div className="mt-3 space-y-2.5">
+            {rows.map((r, i) => {
+              const Icon = r.icon;
+              return (
+                <div key={i} className="flex gap-2.5">
+                  <Icon className="mt-0.5 h-3.5 w-3.5 shrink-0" style={{ color: "var(--teal)" }} />
+                  <div>
+                    <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">{r.label}</div>
+                    <div className="text-sm">{r.value}</div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )
+      )}
+
+      <p className="mt-3 flex items-center gap-1 text-[10px] text-muted-foreground opacity-70">
+        {prose ? <><Sparkles className="h-3 w-3" /> AI brief · written by Claude from the household's notes</> : <>Shared by the household so whoever comes knows the home · rule-based brief (v0)</>}
+      </p>
     </div>
   );
 }
