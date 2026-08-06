@@ -1,8 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { AppShell } from "@/components/layout/AppShell";
 import { useState } from "react";
-import { MapPin, Clock, Calendar, Star } from "lucide-react";
+import { MapPin, Clock, BookOpen, Utensils, KeyRound, ListChecks, StickyNote } from "lucide-react";
 import { useMyWorkerBookings } from "@/lib/data/worker-self";
+import { useBookingBrief, briefHasContent } from "@/lib/data/continuity";
 import { getService, formatMoney } from "@/lib/catalog/catalog";
 import { isSupabaseConfigured } from "@/lib/supabase/client";
 import type { BookingRow } from "@/lib/supabase/database.types";
@@ -78,6 +79,7 @@ function WorkerBookings() {
                   </div>
                   <span className="text-lg font-bold" style={{ color: "var(--purple)" }}>{formatMoney(b.total_amount_minor, b.currency as "INR" | "USD")}</span>
                 </div>
+                <HomeBriefCard bookingId={b.booking_id} />
               </div>
             );
           })}
@@ -109,6 +111,49 @@ function WorkerBookings() {
         </div>
       )}
     </AppShell>
+  );
+}
+
+/**
+ * "Before you arrive — this home." Continuity Memory (0014): the brief the
+ * assigned worker (or a promoted backup) sees for a booking, so a swap-in
+ * arrives already knowing the home. Renders nothing until there's content.
+ */
+function HomeBriefCard({ bookingId }: { bookingId: string }) {
+  const { data: brief } = useBookingBrief(bookingId);
+  if (!briefHasContent(brief) || !brief) return null;
+
+  const rows: { icon: any; label: string; value: string | null }[] = [
+    { icon: Utensils, label: "Food & kitchen", value: brief.dietary },
+    { icon: KeyRound, label: "Getting in", value: brief.access },
+    { icon: Clock, label: "Routines", value: brief.routines },
+    { icon: ListChecks, label: "How they like things", value: brief.preferences },
+    { icon: StickyNote, label: "Notes", value: brief.notes },
+    { icon: StickyNote, label: "For this visit", value: brief.booking_notes },
+  ].filter((r) => r.value);
+
+  return (
+    <div className="mt-4 rounded-xl border p-4" style={{ borderColor: "color-mix(in oklab, var(--teal) 45%, var(--border))", background: "color-mix(in oklab, var(--teal) 7%, var(--card))" }}>
+      <div className="flex items-center gap-2">
+        <BookOpen className="h-4 w-4" style={{ color: "var(--teal)" }} />
+        <h4 className="text-sm font-semibold">Before you arrive — {brief.household_name}'s home</h4>
+      </div>
+      <div className="mt-3 space-y-2.5">
+        {rows.map((r, i) => {
+          const Icon = r.icon;
+          return (
+            <div key={i} className="flex gap-2.5">
+              <Icon className="mt-0.5 h-3.5 w-3.5 shrink-0" style={{ color: "var(--teal)" }} />
+              <div>
+                <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">{r.label}</div>
+                <div className="text-sm">{r.value}</div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      <p className="mt-3 text-[10px] text-muted-foreground opacity-70">Shared by the household so whoever comes knows the home. Rule-based brief (v0).</p>
+    </div>
   );
 }
 

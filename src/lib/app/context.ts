@@ -1,5 +1,5 @@
 import { useRouterState } from "@tanstack/react-router";
-import { Home, CalendarCheck, IdCard, Sparkles, Wallet, Briefcase, History, ShieldCheck } from "lucide-react";
+import { Home, CalendarCheck, IdCard, Sparkles, Wallet, Briefcase, History, ShieldCheck, NotebookPen } from "lucide-react";
 
 /**
  * Bounded contexts (SAD §05).
@@ -69,6 +69,7 @@ export const NAV_BY_CONTEXT: Record<Context, NavItem[]> = {
     { to: "/app", label: "Home", icon: Home },
     { to: "/app/book", label: "Book", icon: CalendarCheck },
     { to: "/app/insights", label: "Insights", icon: Sparkles },
+    { to: "/app/home", label: "My home", icon: NotebookPen },
   ],
   worker: [
     { to: "/worker", label: "Home", icon: Home },

@@ -127,6 +127,28 @@ export type WorkerRow = {
   created_at: string;
 };
 
+/** Continuity Memory — a home's standing context (0014). */
+export type HouseholdPreferencesRow = {
+  household_id: string;
+  dietary: string | null;
+  access: string | null;
+  routines: string | null;
+  preferences: string | null;
+  notes: string | null;
+  updated_at: string;
+};
+
+/** The per-booking brief returned to the assigned worker (or owner/ops). */
+export type HomeBrief = {
+  household_name: string;
+  dietary: string | null;
+  access: string | null;
+  routines: string | null;
+  preferences: string | null;
+  notes: string | null;
+  booking_notes: string | null;
+};
+
 export type NriLinkRow = {
   link_id: string;
   nri_profile: string;
@@ -145,6 +167,7 @@ export type Database = {
       booking: { Row: BookingRow; Insert: Partial<BookingRow>; Update: Partial<BookingRow>; Relationships: [] };
       worker: { Row: WorkerRow; Insert: Partial<WorkerRow>; Update: Partial<WorkerRow>; Relationships: [] };
       nri_link: { Row: NriLinkRow; Insert: Partial<NriLinkRow>; Update: Partial<NriLinkRow>; Relationships: [] };
+      household_preferences: { Row: HouseholdPreferencesRow; Insert: Partial<HouseholdPreferencesRow>; Update: Partial<HouseholdPreferencesRow>; Relationships: [] };
       // read-only to app roles (see 0002 grants) — insert/update kept as Row
       // shape so the generic resolves, but the DB refuses writes.
       service_catalog: { Row: ServiceCatalogRow; Insert: Partial<ServiceCatalogRow>; Update: Partial<ServiceCatalogRow>; Relationships: [] };
@@ -165,6 +188,8 @@ export type Database = {
       resolve_no_show: { Args: { p_booking_id: string; p_checked_in: boolean }; Returns: BookingStatus };
       confirm_booking: { Args: { p_booking_id: string; p_coming: boolean }; Returns: ConfirmStatus };
       run_confirm_checkpoint: { Args: { p_booking_id: string }; Returns: ConfirmStatus };
+      save_home_preferences: { Args: { p_dietary: string | null; p_access: string | null; p_routines: string | null; p_preferences: string | null; p_notes: string | null }; Returns: undefined };
+      booking_home_brief: { Args: { p_booking_id: string }; Returns: HomeBrief[] };
     };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;
