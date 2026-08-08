@@ -14,12 +14,17 @@ Built as a capstone for the **AI Product Manager programme at Imarticus Learning
 > live against Postgres; the no-show loop and Continuity Memory are built; **88
 > automated boundary/feature tests pass** in CI.
 
+## ▶ Live demo
+
+**[tanstack-start-app.casai.workers.dev](https://tanstack-start-app.casai.workers.dev)**
+— click **Guest user** and use a passcode below. No signup, no install.
+
 ---
 
 ## Try it in 60 seconds — guest passcodes
 
-Once the app is running (see *Run it locally* below), open the landing page and click
-**Guest user** → enter one of these demo passcodes. No signup, no onboarding:
+Open the **[live demo](https://tanstack-start-app.casai.workers.dev)** (or run it locally,
+below), click **Guest user** → enter one of these demo passcodes. No signup, no onboarding:
 
 | Passcode | Drops you into |
 |---|---|
